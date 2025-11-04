@@ -13,8 +13,18 @@ if "%~1"=="-h" goto show_help
 if "%~1"=="--help" goto show_help
 
 if exist "%MODULE_DIR%\%MODULE%.py" (
+    REM loop for obtain parameter
+    set "NEWCLI="
+    :loop
+    if "%~1"=="" goto :done
+    if defined NEWCLI set "NEWCLI=%NEWCLI% "
+    set "NEWCLI=%NEWCLI%%2"
     shift
-    "%VENV_PYLAUNCH%" -u "%MODULE_DIR%\%MODULE%.py" %*
+    goto :loop
+    :done
+    REM loop finished!
+    "%VENV_PYLAUNCH%" -u "%MODULE_DIR%\%MODULE%.py" %NEWCLI%
+    exit /b 1
 ) else (
     echo Unknown module: %MODULE%
     echo Installed modules:

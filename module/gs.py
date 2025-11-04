@@ -8,7 +8,29 @@ import socket
 import logging
 import sys
 import os
+doc = '''
+Examples:
+  # Basic usage with VCF file
+  --vcf genotypes.vcf --pheno phenotypes.txt --out results
+  
+  # Using PLINK binary files with custom parameters
+  --bfile genotypes --pheno phenotypes.txt --out results --grm gemma1 --qcov 5 --thread 8
+  
+  # Using external kinship matrix and disabling HighAC
+  --vcf genotypes.vcf --pheno phenotypes.txt --out results --grm kinship_matrix.txt --qcov 10 --no-AC
+  
+  # Maximum performance with all threads
+  --bfile genotypes --pheno phenotypes.txt --out results --grm VanRanden --qcov 3 --thread -1
 
+File Formats:
+  VCF/BFILE:    Standard VCF or PLINK binary format (bed/bim/fam)
+  PHENO:        Tab-delimited file with sample IDs in first column and phenotypes in subsequent columns
+  GRM File:     Space/tab-delimited kinship matrix file
+  QCOV File:    Space/tab-delimited covariate matrix file
+        
+Citation:
+  https://github.com/MaizeMan-JxFU/pyBLUP/
+'''
 def setup_logging(log_file_path):
     """set logging"""
     if os.path.exists(log_file_path) and log_file_path[-4:]=='.log':

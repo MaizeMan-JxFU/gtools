@@ -1,3 +1,30 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+'''
+Examples:
+  # Basic usage with VCF file
+  --vcf genotypes.vcf --pheno phenotypes.txt --out results
+  
+  # Using PLINK binary files with custom parameters
+  --bfile genotypes --pheno phenotypes.txt --out results --grm gemma1 --qcov 5 --thread 8
+  
+  # Using external kinship matrix and disabling HighAC
+  --vcf genotypes.vcf --pheno phenotypes.txt --out results --grm kinship_matrix.txt --qcov 10 --no-AC
+  
+  # Maximum performance with all threads
+  --bfile genotypes --pheno phenotypes.txt --out results --grm VanRanden --qcov 3 --thread -1
+
+File Formats:
+  VCF/BFILE:    Standard VCF or PLINK binary format (bed/bim/fam)
+  PHENO:        Tab-delimited file with sample IDs in first column and phenotypes in subsequent columns
+  GRM File:     Space/tab-delimited kinship matrix file
+  QCOV File:    Space/tab-delimited covariate matrix file
+        
+Citation:
+  https://github.com/MaizeMan-JxFU/pyBLUP/
+'''
+
 from pyBLUP import QK,GWAS
 from gfreader import breader,vcfreader
 import pandas as pd
@@ -8,6 +35,7 @@ import socket
 import logging
 import sys
 import os
+
 def format_dataframe_for_export(df:pd.DataFrame, scientific_cols=None, float_cols=None):
     """
     Parameters:
@@ -51,12 +79,9 @@ def setup_logging(log_file_path):
     logger.addHandler(console_handler)
     return logger
 def main(log:bool=True):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    docfile = os.path.join(script_dir,'../doc','gwas.doc.txt')
-    doc = open(docfile, 'r',).read()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=doc
+        epilog=__doc__
     )
     # Required arguments
     required_group = parser.add_argument_group('Required Arguments')
@@ -211,7 +236,6 @@ if cov is not None:
         qmatrix = np.concatenate([qmatrix,cov],axis=1)
     else:
         raise f'{cov} is not a file'
-# sci_set()
 for i in pheno.columns:
     t = time.time()
     logger.info('*'*60)
