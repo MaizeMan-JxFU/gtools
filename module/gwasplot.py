@@ -69,6 +69,10 @@ def main(log:bool=True):
     optional_group.add_argument('--threshold', type=float, default=None,
                                help='treshold of pvalue'
                                    '(default: %(default)s)')
+    optional_group.add_argument('--plot', action='store_true', default=True,
+                               help='plot manhanden figure (default: %(default)s)')
+    optional_group.add_argument('--noplot', action='store_false', dest='plot',
+                               help='do not plot manhanden figure ')
     optional_group.add_argument('--anno', type=str, default=None,
                                help='annotation option, .gff file or .bed file'
                                    '(default: %(default)s)')
@@ -89,7 +93,8 @@ def main(log:bool=True):
         args.threshold,
         args.out,
         args.anno,
-        args.descItem
+        args.descItem,
+        str(args.plot)
     ]
     # create log file
     args.out = '.'.join(args.file.split('.')[:-1]) if args.out is None else args.out
@@ -106,6 +111,7 @@ def main(log:bool=True):
         logger.info(f"pos:           {args.pos}")
         logger.info(f"pvalue:        {args.pvalue}")
         logger.info(f"threshold:     {args.threshold}")
+        logger.info(f"plot mode:     {args.plot}")
         logger.info(f"output prefix: {args.out}")
         logger.info(f"annotation:    {args.anno}")
         logger.info("*"*60 + "\n")
@@ -122,19 +128,20 @@ file = args.file
 chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
 df = pd.read_csv(file,sep='\t',usecols=[chr_string,pos_string,pvalue_string])
 threshold = args.threshold if args.threshold is not None else 0.05/df.shape[0]
-fig = plt.figure(figsize=(10,4),dpi=300)
-ax =fig.add_subplot(121,)
-ax2 =fig.add_subplot(122,)
-logger.info('* Visualizing...')
-plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
-plotmodel.manhattan(-np.log10(threshold),ax=ax)
-plotmodel.qq(ax=ax2)
-plt.tight_layout()
-plt.savefig(f'{args.out}.png',transparent=True)
-logger.info(f'Saved in {args.out}.png')
+if args.plot:
+    fig = plt.figure(figsize=(10,4),dpi=300)
+    ax =fig.add_subplot(121,)
+    ax2 =fig.add_subplot(122,)
+    logger.info('* Visualizing...')
+    plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
+    plotmodel.manhattan(-np.log10(threshold),ax=ax)
+    plotmodel.qq(ax=ax2)
+    plt.tight_layout()
+    plt.savefig(f'{args.out}.png',transparent=True)
+    logger.info(f'Saved in {args.out}.png')
 if args.anno is not None:
     if os.path.exists(args.anno):
-        df_filter = df.loc[df['p']<=threshold,[chr_string,pos_string,pvalue_string]].set_index([chr_string,pos_string])
+        df_filter = df.loc[df[pvalue_string]<=threshold,[chr_string,pos_string,pvalue_string]].set_index([chr_string,pos_string])
         logger.info('* Annotating...')
         suffix = args.anno.replace('.gz','').split('.')[-1]
         if suffix == 'bed':
@@ -145,7 +152,7 @@ if args.anno is not None:
                 anno[5] = ['NA' for _ in anno.index]
         elif suffix == 'gff' or suffix == 'gff3':
             anno = pd.read_csv(args.anno,sep='\t',header=None,comment='#',low_memory=False,usecols=[0,2,3,4,8])
-            anno = anno[(anno[2]=='gene')&(anno[0].isin(np.arange(1,50).astype(str)))]
+            anno = anno[(anno[2]=='gene')&(anno[0].astype(str).isin(np.arange(1,50).astype(str)))]
             del anno[2]
             anno[0] = anno[0].astype(int)
             anno = anno.sort_values([0,3])
