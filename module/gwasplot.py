@@ -1,4 +1,5 @@
-from pyBLUP import mlm
+from bioplotkit import GWASPLOT
+import matplotlib.pyplot as plt
 from gfreader import breader,vcfreader
 import pandas as pd
 import numpy as np
@@ -10,14 +11,18 @@ import sys
 import os
 '''
 Examples:
-  # Basic usage with xxx
-  --param1 genotypes.vcf --param2 phenotypes.txt --param3 results
+  # Basic usage with gwasplot
+  --file result.assoc.txt
+  # Usage of different column names with gwasplot
+  --file result.assoc.txt --chr "chr" --pos "pos" --pvalue "P_wald"
+  # Usage of gwasplot and point out output path
+  --file result.assoc.txt --chr "chr" --pos "pos" --pvalue "P_wald" --out test # it will saved in test.pdf
 
 File Formats:
-  xxx:    xxx (bed/bim/fam)
+  file:    result.assoc.txt (txt with tab as delimiter)
         
 Citation:
-  https://github.com/MaizeMan-JxFU/xxx/
+  https://github.com/MaizeMan-JxFU/gwasplot/
 '''
 def setup_logging(log_file_path):
     """set logging"""
@@ -49,31 +54,35 @@ def main(log:bool=True):
     )
     # Required arguments
     required_group = parser.add_argument_group('Required Arguments')
-    geno_group = required_group.add_mutually_exclusive_group(required=True)
-    geno_group.add_argument('--param1', type=str, 
-                           help='xxx')
-    geno_group.add_argument('--param2', type=str, 
-                           help='xxx')
-    required_group.add_argument('--param3', type=str, required=True,
-                               help='xxx')
+    required_group.add_argument('--file', type=str, required=True,
+                               help='File of gwas results')
     # Optional arguments
     optional_group = parser.add_argument_group('Optional Arguments')
-    optional_group.add_argument('--out', type=str, default='test',
-                               help='xxx'
+    optional_group.add_argument('--chr', type=str, default='#CHROM',
+                               help='Column name of chr'
+                                   '(default: %(default)s)')
+    optional_group.add_argument('--pos', type=str, default='POS',
+                               help='Column name of position'
+                                   '(default: %(default)s)')
+    optional_group.add_argument('--pvalue', type=str, default='p',
+                               help='Column name of pvalue'
+                                   '(default: %(default)s)')
+    optional_group.add_argument('--out', type=str, default=None,
+                               help='Output prefix path'
                                    '(default: %(default)s)')
     args = parser.parse_args()
     # Build argument list for the original script
     sys.argv = [
         sys.argv[0],  # script name
-        args.param1,
-        args.param2,
-        args.param3,
+        args.file,
+        args.chr,
+        args.pos,
+        args.pvalue,
         args.out,
     ]
     # create log file
+    args.out = '.'.join(args.file.split('.')[:-1]) if args.out is None else args.out
     folder = os.path.dirname(args.out)
-    folder = '.' if folder =='' else folder
-    prefix = os.path.basename(args.out)
     if not os.path.exists(folder):
         os.mkdir(folder,0o755)
     
@@ -83,11 +92,13 @@ def main(log:bool=True):
     # Print configuration summary
     if log:
         logger.info("*"*60)
-        logger.info("xxx")
+        logger.info("GWAS plot script")
         logger.info("*"*60)
-        logger.info(f"param1:         {args.param1}")
-        logger.info(f"output path:      {folder}")
-        logger.info(f"output prefix:      {prefix}")
+        logger.info(f"file:          {args.file}")
+        logger.info(f"chr:           {args.chr}")
+        logger.info(f"pos:           {args.pos}")
+        logger.info(f"pvalue:        {args.pvalue}")
+        logger.info(f"output prefix: {args.out}")
         logger.info("*"*60 + "\n")
     
     # Create output directory if it doesn't exist
@@ -99,7 +110,18 @@ def main(log:bool=True):
 
 t_start = time.time()
 args,logger = main()
-
+file = args.file
+chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
+df = pd.read_csv(file,sep='\t',usecols=[chr_string,pos_string,pvalue_string])
+fig = plt.figure(figsize=(10,4),dpi=300)
+ax =fig.add_subplot(121,)
+ax2 =fig.add_subplot(122,)
+plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
+plotmodel.manhattan(5,ax=ax)
+plotmodel.qq(ax=ax2)
+plt.tight_layout()
+plt.savefig(f'{args.out}.pdf',)
+logger.info(f'Saved in {args.out}.pdf')
 lt = time.localtime()
 endinfo = f'\nFinished, Total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
 logger.info(endinfo)
