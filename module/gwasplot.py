@@ -76,6 +76,9 @@ def main(log:bool=True):
     optional_group.add_argument('--anno', type=str, default=None,
                                help='annotation option, .gff file or .bed file'
                                    '(default: %(default)s)')
+    optional_group.add_argument('--annobroaden', type=float, default=None,
+                               help='broaden range of chromosome (Kb)'
+                                   '(default: %(default)s)')
     optional_group.add_argument('--descItem', type=str, default='description',
                                help='description items in gff file (hidden option)'
                                    '(default: %(default)s)')
@@ -93,6 +96,7 @@ def main(log:bool=True):
         args.threshold,
         args.out,
         args.anno,
+        args.annobroaden,
         args.descItem,
         str(args.plot)
     ]
@@ -114,6 +118,7 @@ def main(log:bool=True):
         logger.info(f"plot mode:     {args.plot}")
         logger.info(f"output prefix: {args.out}")
         logger.info(f"annotation:    {args.anno}")
+        logger.info(f"annobroad(kb): {args.annobroaden}")
         logger.info("*"*60 + "\n")
     folder = os.path.dirname(args.out)
     folder = '.' if folder == '' else folder
@@ -163,6 +168,9 @@ if args.anno is not None:
         '''After treating: anno 0-chr,1-start,2-end,3-geneID,4-description1,5-description2'''
         desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1])&(anno[2]>=x[1])], df_filter.index))
         df_filter['desc'] = list(map(lambda x:f'''{x.iloc[0,3]};{x.iloc[0,4]};{x.iloc[0,5]}''' if not x.empty else 'NA;NA;NA', desc))
+        if args.annobroaden is not None:
+            desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1]+args.annobroaden*1_000)&(anno[2]>=x[1]-args.annobroaden*1_000)], df_filter.index))
+            df_filter['broaden'] = list(map(lambda x:f'''{'|'.join(x.iloc[:,3])};{'|'.join(x.iloc[:,4])};{'|'.join(x.iloc[:,5])}''' if not x.empty else 'NA;NA;NA', desc))
         logger.info(df_filter)
         df_filter.to_csv(f'{args.out}.{threshold}.anno.tsv',sep='\t')
         logger.info(f'Saved in {args.out}.{threshold}.anno.tsv')
