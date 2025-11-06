@@ -86,6 +86,16 @@ def main(log:bool=True):
                                help='Output prefix path'
                                    '(default: %(default)s)')
     args = parser.parse_args()
+    # create log file
+    args.out = '.'.join(args.file.split('.')[:-1]) if args.out is None else args.out
+    folder = os.path.dirname(args.out)
+    folder = '.' if folder == '' else folder
+    # Create output directory if it doesn't exist
+    if not os.path.exists(folder):
+        os.makedirs(folder, mode=0o755)
+    logger = setup_logging(f'''{args.out}.gwasplot.log'''.replace('//','/'))
+    logger.info('Simple script of GWAS visualization')
+    logger.info(f'Host: {socket.gethostname()}\n')
     # Build argument list for the original script
     sys.argv = [
         sys.argv[0],  # script name
@@ -100,11 +110,6 @@ def main(log:bool=True):
         args.descItem,
         str(args.plot)
     ]
-    # create log file
-    args.out = '.'.join(args.file.split('.')[:-1]) if args.out is None else args.out
-    logger = setup_logging(f'''{args.out}.log'''.replace('//','/'))
-    logger.info('High Performance Linear Mixed Model Solver for Genome-Wide Association Studies')
-    logger.info(f'Host: {socket.gethostname()}\n')
     # Print configuration summary
     if log:
         logger.info("*"*60)
@@ -120,11 +125,6 @@ def main(log:bool=True):
         logger.info(f"annotation:    {args.anno}")
         logger.info(f"annobroad(kb): {args.annobroaden}")
         logger.info("*"*60 + "\n")
-    folder = os.path.dirname(args.out)
-    folder = '.' if folder == '' else folder
-    # Create output directory if it doesn't exist
-    if not os.path.exists(folder):
-        os.makedirs(folder, mode=0o755)
     return args,logger
 
 t_start = time.time()
@@ -162,8 +162,8 @@ if args.anno is not None:
             anno[0] = anno[0].astype(int)
             anno = anno.sort_values([0,3])
             anno.columns = range(anno.shape[1])
-            anno[4] = anno[3].str.extract(fr'{args.descItem}=(.*?);')
-            anno[3] = anno[3].str.extract(r'ID=(.*?);')
+            anno[4] = anno[3].str.extract(fr'{args.descItem}=(.*?);').fillna('NA')
+            anno[3] = anno[3].str.extract(r'ID=(.*?);').fillna('NA')
             anno[5] = ['NA' for _ in anno.index]
         '''After treating: anno 0-chr,1-start,2-end,3-geneID,4-description1,5-description2'''
         desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1])&(anno[2]>=x[1])], df_filter.index))
