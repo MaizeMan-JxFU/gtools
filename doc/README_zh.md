@@ -364,24 +364,18 @@ gtools gwas --bfile data/test --pheno data/test.pheno --out . --thread 92 --qcov
 
 ```bash
 # 网络顺畅的情况
-git clone https://github.com/MaizeMan-JxFU/pyBLUP.git
+git clone https://github.com/MaizeMan-JxFU/gtools.git
 # 不能科学上网可以选择国内代理
-git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/pyBLUP.git
+git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/gtools.git
 # 进入目标文件夹
-cd pyBLUP
+cd gtools
 # 执行pip安装依赖
-pip install -r gwas.requirements.txt
-```
-
-没有git基础，可以直接下载 [pyBLUP包文件](https://pan.baidu.com/s/1EibqB_xkuJSlnDM2LhArBA?pwd=TEMP)，解压后在终端进入pyBLUP文件夹，执行下列代码安装依赖
-
-```bash
-# 执行pip安装依赖
-pip install -r gwas.requirements.txt
+./install.sh # .\install.bat # windows
 ```
 
 ### 功能1: 全基因组关联分析
 
+模块: gwas
 必须参数1：--vcf [vcf文件] 或 --bfile [plink文件]
 必须参数2：--pheno [表型文件]
 必须参数3：--out [结果文件输出文件夹(不存在则自动创建)]
@@ -389,16 +383,10 @@ pip install -r gwas.requirements.txt
 
 #### 多平台使用
 
-```bash
-python gwas.py --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test
-```
-
-#### unix使用
-
-GWAS [模块名] [模块命令](后续增加 coloc、gs 等模块)
+gtools [模块名] [模块命令](后续增加 coloc、gs 等模块)
 
 ```bash
-chmod +755 GWAS # 可将 GWAS 所在文件夹加入环境变量
+chmod +x gtools # 可将 GWAS 所在文件夹加入环境变量
 gtools gwas -h # 查看帮助
 gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test # 用法和 python gwas.py [参数] 一致
 ```
