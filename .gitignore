@@ -22,4 +22,4 @@ test.*
 
 uv.lock
 .python-version
-.venv/*
+.venv/
