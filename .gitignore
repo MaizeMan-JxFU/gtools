@@ -21,3 +21,4 @@ example/*.k.*
 test.*
 
 uv.lock
+.python-version

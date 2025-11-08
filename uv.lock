@@ -353,15 +353,15 @@ wheels = [
 
 [[package]]
 name = "gfreader"
-version = "1.0.4"
+version = "1.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bed-reader" },
     { name = "pandas" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bc/bc/e2944d4d269dab1f17faef551ed9bad24c61c3f8aa6d3066ad14d56d629d/gfreader-1.0.4.tar.gz", hash = "sha256:54bd1c6b87613b244e869ccf02965ccd53b6969318ced94fa7a8f797639d60da", size = 39173, upload-time = "2025-11-08T03:46:23.717Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/4b/51d29839dfbf3e41460d227359df76ba34f7d83542e89a18efaff74e2bb8/gfreader-1.0.5.tar.gz", hash = "sha256:ebd0a07669126145a8e59afb2b90220e48cbd66a1105567ed4564f34ba3a65b2", size = 39171, upload-time = "2025-11-08T03:55:09.806Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5b/fe/2852c808a2002843015fceab90a38257feac361b5c4bd0c816344fae9272/gfreader-1.0.4-py3-none-any.whl", hash = "sha256:f35ead90f60b7cf2c98c91b2f88d086cf343aa172244a463f460168fbc445644", size = 13001, upload-time = "2025-11-08T03:46:22.405Z" },
+    { url = "https://files.pythonhosted.org/packages/00/c3/3ef7864ec9e502b304da036b69bbc8acd849d25518d8dada504a6fee1b74/gfreader-1.0.5-py3-none-any.whl", hash = "sha256:0ac34c25809791f15a2296da823199fd892188a0251086cbd47dfc6a3c7dcfbb", size = 16509, upload-time = "2025-11-08T03:55:08.549Z" },
 ]
 
 [[package]]
@@ -377,7 +377,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "bioplotkit" },
-    { name = "gfreader", specifier = "==1.0.4" },
+    { name = "gfreader", specifier = "==1.0.5" },
     { name = "pyblup", specifier = "==1.0.5" },
 ]
 
