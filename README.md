@@ -13,6 +13,7 @@ cd gtools
 # .\gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test
 chmod +x ./install.sh; ./install.sh # unix
 ./gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test
+
 ```
 
 ![manhanden&qq](./fig/test0.png "Simple visualization")

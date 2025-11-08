@@ -373,6 +373,7 @@ git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/gtools.git
 cd gtools; chmod +x ./install.sh
 # 执行pip安装依赖
 ./install.sh # .\install.bat # windows
+
 ```
 
 Windows
@@ -381,6 +382,7 @@ Windows
 git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/gtools.git
 cd gtools
 .\install.bat
+
 ```
 
 ### 功能1: 全基因组关联分析
@@ -396,7 +398,6 @@ cd gtools
 gtools [模块名] [模块命令](后续增加 coloc、gs 等模块)
 
 ```bash
-chmod +x gtools # 可将 GWAS 所在文件夹加入环境变量
 gtools gwas -h # 查看帮助
 gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test # 用法和 python gwas.py [参数] 一致
 ```
