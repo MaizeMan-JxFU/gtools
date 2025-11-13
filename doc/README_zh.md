@@ -1,4 +1,4 @@
-# pyBLUP：高效的全基因组关联分析及全基因组选择工具
+# gtools：高效的全基因组关联分析及全基因组选择工具
 
 ## 引言
 
@@ -89,7 +89,7 @@ $$
 **测试数据集**: [RiceAtlas](http://60.30.67.242:18076/#/download)，6048个体 Panicle_length性状 (基因型+表型)
 **数据格式**：
 基因型属于plink标准格式
-表型格式如下，每列是不同样本，第二列~第n列是多种表型。\t 作为分隔符
+表型格式如下，每列是不同样本，第二列~第n列是多种表型。换行符作为分隔。
 
 | samples | pheno_name |
 | :-----: | :------: |
@@ -323,14 +323,14 @@ gtools gwas --bfile data/test --pheno data/test.pheno --out . --thread 92 --qcov
 
 ### 效率测试
 
-&emsp;&emsp;为了测试代码多线程的效率，本研究在服务器上固定基因型、表型，探究CPU核心数和耗时之间的关系。理想的并行计算情况下，耗时应该会随着核心数的增加而线性降低。然而，结果表明耗时随CPU核心的增加呈现负指数衰减，并非线性关系。最高效的计算方法是评估基因型读取时间和单个表型计算时间，最终确定拆分计算亦或合并计算。
+&emsp;&emsp;为了测试代码多线程的效率，本研究在服务器上固定基因型、表型，探究CPU核心数和耗时之间的关系。理想的并行计算情况下，耗时应该会随着核心数的增加而线性降低。然而，结果表明耗时随CPU核心的增加呈现负指数衰减，并非线性关系。最高效的计算方法是评估基因型读取时间和单个表型计算时间，最终确定拆分计算亦或合并计算。(CUBIC群体，476个体，9.8M SNP，6个锈病相关表型)
 
-|core|time (min)|
-|:-:|:-:|
-|8|69|
-|16|42|
-|32|28|
-|64|23|
+|Core|Time (min)|Memory (gb)|
+|:-:|:-:|:-:|
+|8|69|8.66|
+|16|42|9.42|
+|32|28|11.04|
+|64|23|14.96|
 
 ![CPUtest](../fig/cpu_time_test.png "Test of relation between CPU and costed time"){: style="display: block; margin: 0 auto"}
 
@@ -392,6 +392,12 @@ gtools gwasplot --file test/test0.assoc.tsv
 使用example文件夹下的[测试数据](https://doi.org/10.1038/ng.3609)输出结果如下所示：
 ![GWAStest](../fig/test0.png "GWAS test of pyBLUP"){: style="display: block; margin: 0 auto"}
 *(The above image depicts physiological and behavioral trait loci identified in CFW mice using GEMMA, from Parker et al, Nature Genetics, 2016.)
+
+### 功能2: 全基因组选择
+
+xxx
+
+## 写在最后
 
 更新计划：重写bed_reader函数，获得更高效的基因型编码方式，从而降低内存占用；优化biokitplot中的GWASplot函数，使其绘制千万级别位点的速度更快、内存占用更低。混合线性模型中加入牛顿法，解决多随机效应方差估计的问题（目前pyBLUP只能引入单一随机效应，例如亲缘关系）。
 更多用法可以访问[Github仓库](https://github.com/MaizeMan-JxFU/pyBLUP)，仍在更新中...
