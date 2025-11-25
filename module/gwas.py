@@ -7,8 +7,8 @@ Examples:
   # Using PLINK binary files with custom parameters
   --bfile genotypes --pheno phenotypes.txt --out results --grm gemma1 --qcov 5 --thread 8
   
-  # Using external kinship matrix and disabling HighAC
-  --vcf genotypes.vcf --pheno phenotypes.txt --out results --grm kinship_matrix.txt --qcov 10 --no-AC
+  # Using external kinship matrix and enabling fast mode
+  --vcf genotypes.vcf --pheno phenotypes.txt --out results --grm kinship_matrix.txt --qcov 10 --fast
   
   # Maximum performance with all threads
   --bfile genotypes --pheno phenotypes.txt --out results --grm VanRanden --qcov 3 --cov covfile.txt --thread -1
@@ -24,6 +24,7 @@ Citation:
   https://github.com/MaizeMan-JxFU/pyBLUP/
 '''
 
+from ast import arg
 from pyBLUP import QK,GWAS
 from _gfreader import breader,vcfreader
 import pandas as pd
@@ -85,36 +86,42 @@ def main(log:bool=True):
     # Required arguments
     required_group = parser.add_argument_group('Required Arguments')
     geno_group = required_group.add_mutually_exclusive_group(required=True)
-    geno_group.add_argument('--vcf', type=str, 
+    geno_group.add_argument('-vcf','--vcf', type=str, 
                            help='Input genotype file in VCF format (.vcf or .vcf.gz)')
-    geno_group.add_argument('--bfile', type=str, 
+    geno_group.add_argument('-bfile','--bfile', type=str, 
                            help='Input genotype files in PLINK binary format (prefix for .bed, .bim, .fam)')
-    required_group.add_argument('--pheno', type=str, required=True,
+    geno_group.add_argument('-sparse','--sparse', type=str, 
+                           help='Input genotype files in PLINK binary format (prefix for .bed, .bim, .fam)')
+    required_group.add_argument('-p','--pheno', type=str, required=True,
                                help='Phenotype file (tab-delimited with sample IDs in first column)')
     # Optional arguments
     optional_group = parser.add_argument_group('Optional Arguments')
-    optional_group.add_argument('--out', type=str, default='test',
+    optional_group.add_argument('-o', '--out', type=str, default='test',
                                help='Output directory for results'
                                    '(default: %(default)s)')
-    optional_group.add_argument('--grm', type=str,
+    optional_group.add_argument('-k','--grm', type=str,
                                default='VanRanden',
                                help='Kinship matrix calculation method or path to pre-calculated GRM file '
                                    '(default: %(default)s)')
-    optional_group.add_argument('--qcov', type=str, default='3',
+    optional_group.add_argument('-q','--qcov', type=str, default='3',
                                help='Number of principal components for Q matrix or path to covariate matrix file '
                                    '(default: %(default)s)')
-    optional_group.add_argument('--cov', type=str, default=None,
+    optional_group.add_argument('-c','--cov', type=str, default=None,
                                help='Path to Covariance file '
                                    '(default: %(default)s)')
-    optional_group.add_argument('--thread', type=int, default=-1,
+    optional_group.add_argument('-t','--thread', type=int, default=-1,
                                help='Number of CPU threads to use (-1 for all available cores, default: %(default)s)')
-    optional_group.add_argument('--AC', action='store_true', default=True,
-                               help='Enable HighAC mode for GWAS (default: %(default)s)')
-    optional_group.add_argument('--no-AC', action='store_false', dest='AC',
-                               help='Disable HighAC mode')
+    optional_group.add_argument('--fast', action='store_true', default=False,
+                               help='Enable fast mode for GWAS (default: %(default)s)')
     args = parser.parse_args()
     # Determine genotype file
-    gfile = args.vcf if args.vcf else args.bfile
+    if args.vcf:
+        gfile = args.vcf
+    elif args.bfile:
+        gfile = args.bfile
+    elif args.sparse:
+        gfile = args.sparse
+        raise NotImplementedError('Sparse PLINK format is not yet implemented.')
     # Build argument list for the original script
     sys.argv = [
         sys.argv[0],  # script name
@@ -124,12 +131,11 @@ def main(log:bool=True):
         args.grm,
         args.qcov,
         args.cov,
-        str(args.AC)
+        str(args.fast)
     ]
     # create log file
     if not os.path.exists(args.out):
         os.mkdir(args.out,0o755)
-    
     filename = os.path.basename(gfile)
     logger = setup_logging(f'''{args.out}/{filename.replace('.vcf','').replace('.gz','')}.log'''.replace('//','/'))
     logger.info('High Performance Linear Mixed Model Solver for Genome-Wide Association Studies')
@@ -146,7 +152,7 @@ def main(log:bool=True):
         logger.info(f"Q matrix:         {args.qcov}")
         logger.info(f"Covariant matrix: {args.cov}")
         logger.info(f"Threads:          {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
-        logger.info(f"HighAC mode:      {args.AC}")
+        logger.info(f"FAST mode:        {args.fast}")
         logger.info("*"*60 + "\n")
     
     # Create output directory if it doesn't exist
@@ -162,7 +168,7 @@ phenofile,outfolder = args.pheno,args.out
 kinship_method = args.grm
 qdim = args.qcov
 cov = args.cov
-HighAC = args.AC
+FASTmode = args.fast
 threads = args.thread
 kcal = True if kinship_method in ['VanRanden', 'gemma1', 'gemma2', 'pearson'] else False
 qcal = True if qdim in np.arange(1,20).astype(str) else False
@@ -186,7 +192,7 @@ if args.vcf:
     geno = vcfreader(rf'{gfile}') # VCF format
     ref_alt = geno.iloc[:,:2]
     geno = geno.iloc[:,2:].T 
-else:
+elif args.bfile:
     logger.info(f'Loading genotype from {gfile}.bed...')
     geno = breader(rf'{gfile}') # PLINK format
     ref_alt = geno.iloc[:,:2]
@@ -251,12 +257,11 @@ for i in pheno.columns:
     p = p.loc[famid_pheno].values.reshape(-1,1)
     if len(p)>0:
         gwasmodel = GWAS(y=p,X=qmatrix[famid_geno,:],kinship=kmatrix[famid_geno,:][:,famid_geno])
-        logger.info(f'''Phenotype: {i}, Number of samples: {len(famid_geno)}, Number of SNP: {geno.shape[1]}, pve of null: {round(gwasmodel.pve,3)}, high AC model: {HighAC}''')
-        if HighAC:
-            results = gwasmodel.gwasHAC(snp=geno.values[famid_geno,:],chunksize=200_000,threads=threads) # gwas running...
-            # np.savetxt(f'{outfolder}/{i}.lbd',np.array(gwasmodel.lbd),fmt='%.4f')
-        else:
+        logger.info(f'''Phenotype: {i}, Number of samples: {len(famid_geno)}, Number of SNP: {geno.shape[1]}, pve of null: {round(gwasmodel.pve,3)}, FAST mode: {FASTmode}''')
+        if FASTmode:
             results = gwasmodel.gwas(snp=geno.values[famid_geno,:],chunksize=200_000,threads=threads) # gwas running...
+        else:
+            results = gwasmodel.gwasHAC(snp=geno.values[famid_geno,:],chunksize=200_000,threads=threads) # gwas running...
         logger.info(f'Effective number of SNP: {results.shape[0]}')
         results = pd.DataFrame(results,columns=['beta','se','af','p'],index=ref_alt.index[gwasmodel.snp_retain])
         results = pd.concat([ref_alt.iloc[gwasmodel.snp_retain,:],results],axis=1)

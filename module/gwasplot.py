@@ -56,7 +56,7 @@ def main(log:bool=True):
     )
     # Required arguments
     required_group = parser.add_argument_group('Required Arguments')
-    required_group.add_argument('--file', type=str, required=True,
+    required_group.add_argument('-f','--file', type=str, required=True,
                                help='File of gwas results')
     # Optional arguments
     optional_group = parser.add_argument_group('Optional Arguments')
@@ -72,10 +72,8 @@ def main(log:bool=True):
     optional_group.add_argument('--threshold', type=float, default=None,
                                help='treshold of pvalue'
                                    '(default: %(default)s)')
-    optional_group.add_argument('--plot', action='store_true', default=True,
-                               help='plot manhanden figure (default: %(default)s)')
-    optional_group.add_argument('--noplot', action='store_false', dest='plot',
-                               help='do not plot manhanden figure ')
+    optional_group.add_argument('--noplot', action='store_false', default=True,
+                               help='disabling plot manhanden figure (default: %(default)s)')
     optional_group.add_argument('--anno', type=str, default=None,
                                help='annotation option, .gff file or .bed file'
                                    '(default: %(default)s)')
@@ -111,7 +109,7 @@ def main(log:bool=True):
         args.anno,
         args.annobroaden,
         args.descItem,
-        str(args.plot)
+        str(args.noplot)
     ]
     # Print configuration summary
     if log:
@@ -123,7 +121,7 @@ def main(log:bool=True):
         logger.info(f"pos:           {args.pos}")
         logger.info(f"pvalue:        {args.pvalue}")
         logger.info(f"threshold:     {args.threshold}")
-        logger.info(f"plot mode:     {args.plot}")
+        logger.info(f"plot mode:     {args.noplot}")
         logger.info(f"output prefix: {args.out}")
         logger.info(f"annotation:    {args.anno}")
         logger.info(f"annobroad(kb): {args.annobroaden}")
@@ -141,7 +139,7 @@ file = args.file
 chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
 df = pd.read_csv(file,sep='\t',usecols=[chr_string,pos_string,pvalue_string])
 threshold = args.threshold if args.threshold is not None else 0.05/df.shape[0]
-if args.plot:
+if args.noplot:
     fig = plt.figure(figsize=(10,4),dpi=300)
     ax =fig.add_subplot(121,)
     ax2 =fig.add_subplot(122,)

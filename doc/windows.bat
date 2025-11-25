@@ -8,7 +8,7 @@ set "VENV_PYLAUNCH=%SCRIPT_DIR%.venv\Scripts\python.exe"
 set "MODULE_NAME=%~1"
 set "MODULE=%MODULE_NAME:.py=%"
 
-type "%SCRIPT_DIR%\fig\log.txt"
+type "%SCRIPT_DIR%\fig\logo.txt"
 
 if "%~1"=="" goto show_help
 if "%~1"=="-h" goto show_help
