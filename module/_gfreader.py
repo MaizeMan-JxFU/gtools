@@ -76,7 +76,7 @@ def vcfreader(vcfPath:str,chunksize=50_000,ref_adjust:str=None) -> pd.DataFrame:
                     col = line.replace('\n','').split('\t')
                     break
             buf_gen = takewhile(lambda x: x, (f.read(buffer) for _ in repeat(None)))
-            sum_snp = sum(buf.decode('utf-8').count('\n') for buf in buf_gen)-sum(buf.count('#') for buf in buf_gen)
+            sum_snp = sum(buf.decode('utf-8').count('\n') for buf in buf_gen)
     else:
         compression = None
         with open(vcfPath) as f:
@@ -85,7 +85,7 @@ def vcfreader(vcfPath:str,chunksize=50_000,ref_adjust:str=None) -> pd.DataFrame:
                     col = line.replace('\n','').split('\t')
                     break
             buf_gen = takewhile(lambda x: x, (f.read(buffer) for _ in repeat(None)))
-            sum_snp = sum(buf.decode('utf-8').count('\n') for buf in buf_gen)-sum(buf.count('#') for buf in buf_gen)
+            sum_snp = sum(buf.count('\n') for buf in buf_gen)
     ncol = [0,1,3,4]+list(range(col.index('FORMAT')+1,len(col)))
     col = [col[i] for i in ncol]
     vcf_chunks = pd.read_csv(vcfPath,sep=r'\s+',comment='#',header=None,usecols=ncol,low_memory=False,compression=compression,chunksize=chunksize)
@@ -93,7 +93,7 @@ def vcfreader(vcfPath:str,chunksize=50_000,ref_adjust:str=None) -> pd.DataFrame:
     t_start = time.time()
     for iter,vcf_chunk in enumerate(vcf_chunks): # 分块处理vcf
         end = iter*chunksize + vcf_chunk.shape[0]
-        iter_ratio = round(end/sum_snp,2)
+        iter_ratio = end/sum_snp
         time_cost = time.time()-t_start
         time_left = time_cost/iter_ratio
         all_time_info = f'''{round(100*iter_ratio,2)}% (time cost: {round(time_cost/60,2)}/{round(time_left/60,2)} mins)'''
