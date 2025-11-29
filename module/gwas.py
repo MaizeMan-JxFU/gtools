@@ -5,13 +5,13 @@ Examples:
   --vcf genotypes.vcf --pheno phenotypes.txt --out results
   
   # Using PLINK binary files with custom parameters
-  --bfile genotypes --pheno phenotypes.txt --out results --grm gemma1 --qcov 5 --thread 8
+  --bfile genotypes --pheno phenotypes.txt --out results --grm 1 --qcov 3 --thread 8
   
   # Using external kinship matrix and enabling fast mode
   --vcf genotypes.vcf --pheno phenotypes.txt --out results --grm kinship_matrix.txt --qcov 10 --fast
   
   # Maximum performance with all threads
-  --bfile genotypes --pheno phenotypes.txt --out results --grm VanRanden --qcov 3 --cov covfile.txt --thread -1
+  --bfile genotypes --pheno phenotypes.txt --out results --grm 1 --qcov 3 --cov covfile.txt --thread -1
 
 File Formats:
   VCF/BFILE:    Standard VCF or PLINK binary format (bed/bim/fam)
@@ -24,9 +24,8 @@ Citation:
   https://github.com/MaizeMan-JxFU/pyBLUP/
 '''
 
-from ast import arg
-from matplotlib.pyplot import plot
-from pyBLUP import QK,GWAS
+from pyBLUP import GWAS
+from pyBLUP.QK2 import QK
 from _gfreader import breader,vcfreader
 import pandas as pd
 import numpy as np
@@ -100,8 +99,8 @@ def main(log:bool=True):
     optional_group.add_argument('-o', '--out', type=str, default='test',
                                help='Output directory for results'
                                    '(default: %(default)s)')
-    optional_group.add_argument('-k','--grm', type=str,
-                               default='VanRanden',
+    optional_group.add_argument('-k','--grm', type=int,
+                               default=1,
                                help='Kinship matrix calculation method or path to pre-calculated GRM file '
                                    '(default: %(default)s)')
     optional_group.add_argument('-q','--qcov', type=str, default='3',
@@ -114,8 +113,6 @@ def main(log:bool=True):
                                help='Number of CPU threads to use (-1 for all available cores, default: %(default)s)')
     optional_group.add_argument('-fast','--fast', action='store_true', default=False,
                                help='Enable fast mode for GWAS (default: %(default)s)')
-    optional_group.add_argument('-plot','--plot', action='store_true', default=False,
-                               help='Enable plot mode for GWAS result (default: %(default)s)')
     args = parser.parse_args()
     # Determine genotype file
     if args.vcf:
@@ -135,7 +132,6 @@ def main(log:bool=True):
         args.qcov,
         args.cov,
         str(args.fast),
-        str(args.plot),
     ]
     # create log file
     if not os.path.exists(args.out):
@@ -157,7 +153,6 @@ def main(log:bool=True):
         logger.info(f"Covariant matrix: {args.cov}")
         logger.info(f"Threads:          {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
         logger.info(f"FAST mode:        {args.fast}")
-        logger.info(f"Plot mode:        {args.plot}")
         logger.info("*"*60 + "\n")
     
     # Create output directory if it doesn't exist
@@ -174,9 +169,8 @@ kinship_method = args.grm
 qdim = args.qcov
 cov = args.cov
 FASTmode = args.fast
-plotmode = args.plot
 threads = args.thread
-kcal = True if kinship_method in ['VanRanden', 'gemma1', 'gemma2', 'pearson'] else False
+kcal = True if kinship_method in [1,2] else False
 qcal = True if qdim in np.arange(1,20).astype(str) else False
 
 # test exist of all input files
@@ -214,16 +208,17 @@ geno.index = geno.index.astype(str)
 famid = geno.index
 logger.info('Geno and Pheno are ready!')
 
+qkmodel = ''
 if qcal or kcal:
     if not os.path.exists(f'{prefix}.k.{kinship_method}.txt') or not os.path.exists(f'{prefix}.q.{qdim}.txt') and int(qdim)!=0:
-        qkmodel = QK(geno.values,low_memory=True,log=True)
+        qkmodel = QK(geno.values,log=True)
         logger.info(f'Samples and SNP: {geno.shape}')
     if os.path.exists(f'{prefix}.k.{kinship_method}.txt'):
         logger.info(f'* Loading GRM from {prefix}.k.{kinship_method}.txt...')
         kmatrix = pd.read_csv(f'{prefix}.k.{kinship_method}.txt',sep=r'\s+',header=None).values
     else:    
         logger.info(f'* Calculation method of kinship matrix is {kinship_method}')
-        kmatrix = qkmodel.kinship(method=kinship_method)
+        kmatrix = qkmodel.GRM(method=kinship_method)
         np.savetxt(f'{prefix}.k.{kinship_method}.txt',kmatrix,fmt='%.6f')
 
     if os.path.exists(f'{prefix}.q.{qdim}.txt'):
@@ -232,7 +227,8 @@ if qcal or kcal:
     else:
         if int(qdim) > 0:
             logger.info(f'* Dimension of PC for q matrix is {qdim}')
-            qmatrix,eigenval = qkmodel.rpca(dim=int(qdim))
+            qmatrix,eigenval = qkmodel.PCA()
+            qmatrix = qmatrix[:,:int(qdim)]
             np.savetxt(f'{prefix}.q.{qdim}.txt',qmatrix,fmt='%.6f')
         else:
             qmatrix = np.array([]).reshape(geno.shape[0],0)
@@ -256,6 +252,7 @@ logger.info(f'GRM {str(kmatrix.shape)}:')
 logger.info(kmatrix[:5,:5])
 logger.info(f'Qmatrix {str(qmatrix.shape)}:')
 logger.info(qmatrix[:5,:5])
+del qkmodel
 
 for i in pheno.columns:
     t = time.time()
@@ -268,9 +265,9 @@ for i in pheno.columns:
         gwasmodel = GWAS(y=p,X=qmatrix[famid_geno,:],kinship=kmatrix[famid_geno,:][:,famid_geno])
         logger.info(f'''Phenotype: {i}, Number of samples: {len(famid_geno)}, Number of SNP: {geno.shape[1]}, pve of null: {round(gwasmodel.pve,3)}, FAST mode: {FASTmode}''')
         if FASTmode:
-            results = gwasmodel.gwas(snp=geno.values[famid_geno,:],chunksize=200_000,threads=threads) # gwas running...
+            results = gwasmodel.gwas(snp=geno.values[famid_geno,:],chunksize=500_000,threads=threads) # gwas running...
         else:
-            results = gwasmodel.gwasHAC(snp=geno.values[famid_geno,:],chunksize=200_000,threads=threads) # gwas running...
+            results = gwasmodel.gwasHAC(snp=geno.values[famid_geno,:],chunksize=500_000,threads=threads) # gwas running...
         logger.info(f'Effective number of SNP: {results.shape[0]}')
         results = pd.DataFrame(results,columns=['beta','se','af','p'],index=ref_alt.index[gwasmodel.snp_retain])
         results = pd.concat([ref_alt.iloc[gwasmodel.snp_retain,:],results],axis=1)
@@ -278,36 +275,6 @@ for i in pheno.columns:
         results_save = format_dataframe_for_export(results, scientific_cols=['p'], float_cols=['beta','se','af'])
         results_save.to_csv(f'{outfolder}/{i}.assoc.tsv',sep='\t',index=False)
         logger.info(f'Saved in {outfolder}/{i}.assoc.tsv'.replace('//','/'))
-        if plotmode:
-            import matplotlib.pyplot as plt
-            from bioplotkit import GWASPLOT
-            import matplotlib as mpl
-            logging.getLogger('fontTools.subset').setLevel(logging.ERROR)
-            logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-            mpl.use('Agg')
-            mpl.rcParams['pdf.fonttype'] = 42
-            mpl.rcParams['ps.fonttype'] = 42
-            # Manhattan Plot
-            plotmodel = GWASPLOT(results)
-            fig = plt.figure(figsize=(5,4))
-            ax1 = fig.add_subplot(111)
-            ax1.hist(p,bins=20)
-            ax1.set_xlabel(f'Distribution of {i}')
-            ax1.set_ylabel('Frequency')
-            plt.tight_layout()
-            plt.savefig(f'{outfolder}/{i}.assoc.hist.pdf',transparent=True)
-            fig = plt.figure(figsize=(8,4))
-            ax2 = fig.add_subplot(111)
-            plotmodel.manhattan(-np.log10(1e-6), ax=ax2)
-            plt.tight_layout()
-            plt.savefig(f'{outfolder}/{i}.assoc.manh.pdf',transparent=True)
-            fig = plt.figure(figsize=(5,4))
-            ax3 = fig.add_subplot(111)
-            plotmodel.qq(ax=ax3)
-            plt.tight_layout()
-            plt.savefig(f'{outfolder}/{i}.assoc.qq.pdf',transparent=True)
-            logger.info(f'Saved in {outfolder}/{i}.assoc.*.pdf'.replace('//','/'))
-            plt.close('all')
         del results,results_save,gwasmodel,p,famid_pheno,famid_geno
     else:
         logger.info(f'Phenotype {i} has no overlapping samples with genotype, please check sample id. skipped.\n')
