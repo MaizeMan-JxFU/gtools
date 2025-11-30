@@ -1,15 +1,25 @@
 [project]
 name = "gtools"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Suite of Genotyping Tools"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "pyblup==1.1.0",
+    "numpy",
+    "scipy",
+    "joblib>=1.5.2",
+    "psutil",
+    "bed-reader==1.0.6",
     "bioplotkit==1.0.2",
-    "bed-reader==1.0.6"
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.uv]
 index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 python-install-mirror = "https://registry.npmmirror.com/-/binary/python-build-standalone/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyBLUP","src/gfreader"]

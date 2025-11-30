@@ -26,7 +26,7 @@ Citation:
 
 from pyBLUP import GWAS
 from pyBLUP.QK2 import QK
-from _gfreader import breader,vcfreader
+from gfreader import breader,vcfreader
 import pandas as pd
 import numpy as np
 import argparse
