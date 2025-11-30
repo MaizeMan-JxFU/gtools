@@ -1,5 +1,6 @@
 import time
 from bed_reader import open_bed
+import numpy as np
 import pandas as pd
 import gzip
 import psutil
@@ -67,8 +68,6 @@ def vcfreader(vcfPath:str,chunksize=50_000,ref_adjust:str=None) -> pd.DataFrame:
     '''ref_adjust: 基于基因组矫正, 需提供参考基因组路径'''
     from itertools import takewhile,repeat
     buffer = 8*1024*1024
-    # print(os.stat(vcfPath)) 比较parquet文件和vcf文件创建时间
-    prefix = vcfPath.replace('.gz','').replace('.vcf','')
     if '.gz' == vcfPath[-3:]:
         compression = 'gzip'
         with gzip.open(vcfPath) as f:
@@ -172,6 +171,19 @@ def hmpreader(hmp:str,sample_start:int=None,chr:str='chrom',ps:str='position',re
         genotype.columns = ['REF','ALT']+genotype.columns[2:].to_list()
     return genotype
 
+def npyreader(prefix:str,ref_adjust:str=None):
+    genotype = np.load(f'{prefix}.npz')
+    samples = pd.read_csv(f'{prefix}.idv',sep='\t',header=None)[0].values
+    ref_alt = pd.read_csv(f'{prefix}.snp',sep='\t',header=None,dtype={0:'category',1:'int32',2:'category',3:'category'})
+    ref_alt.columns = ['#CHROM','POS','A0','A1']
+    genotype:pd.DataFrame = pd.concat([ref_alt,pd.DataFrame(genotype['arr_0'],columns=samples)],axis=1).set_index(["#CHROM","POS"])
+    if ref_adjust is not None:
+        adjust_m = GENOMETOOL(ref_adjust)
+        genotype.iloc[:,:2] = adjust_m.refalt_adjust(genotype.iloc[:,:2])
+        genotype.loc[adjust_m.exchange_loc,genotype.columns[2:]] = 2 - genotype.loc[adjust_m.exchange_loc,genotype.columns[2:]]
+        genotype.columns = ['REF','ALT']+genotype.columns[2:].to_list()
+    return genotype
+
 def vcfinfo():
     import time
     alltime = time.localtime()
@@ -182,7 +194,13 @@ def vcfinfo():
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'''
     return vcf_info
 
-def genotype2vcf(geno:pd.DataFrame,outPath:str=None,chunksize:int=10_000):
+def genotype2npy(geno: pd.DataFrame,outPrefix:str=None):
+    geno = geno.reset_index() if geno.columns[0] != "#CHROM" else geno
+    np.savez_compressed(f'{outPrefix}.npz',geno.iloc[:,4:].values)
+    geno.iloc[:,:4].to_csv(f'{outPrefix}.snp',header=None,index=None,sep='\t')
+    geno.columns[4:].to_frame().to_csv(f'{outPrefix}.idv',header=None,index=None,sep='\t')
+
+def genotype2vcf(geno:pd.DataFrame,outPrefix:str=None,chunksize:int=10_000):
     import warnings
     warnings.filterwarnings('ignore')
     vcf_head = 'ID QUAL FILTER INFO FORMAT'.split(' ')
@@ -201,19 +219,19 @@ def genotype2vcf(geno:pd.DataFrame,outPath:str=None,chunksize:int=10_000):
     def transG(col:pd.Series):
         vcf_transdict = {0:'0/0',2:'1/1',1:'0/1',-9:'./.'}
         return col.map(vcf_transdict).fillna('./.')
-    with open(f'{outPath}.vcf','w') as f:
+    with open(f'{outPrefix}.vcf','w') as f:
         f.writelines(vcfinfo())
     if chunksize >= vcf.shape[0]:
         vcf[samples] = vcf[samples].apply(transG,axis=0)
-        vcf.to_csv(f'{outPath}.vcf',sep='\t',index=None,mode='a')
+        vcf.to_csv(f'{outPrefix}.vcf',sep='\t',index=None,mode='a')
     else:
         for i in range(0,vcf.shape[0],chunksize):
             vcf_chunk = vcf.iloc[i:i+chunksize,:]
             vcf_chunk[samples] = vcf_chunk[samples].apply(transG,axis=0)
             if i == 0:
-                vcf_chunk.to_csv(f'{outPath}.vcf',sep='\t',index=None,mode='a')
+                vcf_chunk.to_csv(f'{outPrefix}.vcf',sep='\t',index=None,mode='a')
             else:
-                vcf_chunk.to_csv(f'{outPath}.vcf',sep='\t',index=None,header=False,mode='a')
+                vcf_chunk.to_csv(f'{outPrefix}.vcf',sep='\t',index=None,header=False,mode='a')
         
 if __name__ == "__main__":
     pass

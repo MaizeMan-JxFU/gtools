@@ -25,8 +25,8 @@ Citation:
 '''
 
 from pyBLUP import GWAS
-from pyBLUP.QK2 import QK
-from gfreader import breader,vcfreader
+from pyBLUP import QK
+from gfreader import breader,vcfreader,npyreader
 import pandas as pd
 import numpy as np
 import argparse
@@ -90,8 +90,8 @@ def main(log:bool=True):
                            help='Input genotype file in VCF format (.vcf or .vcf.gz)')
     geno_group.add_argument('-bfile','--bfile', type=str, 
                            help='Input genotype files in PLINK binary format (prefix for .bed, .bim, .fam)')
-    geno_group.add_argument('-sparse','--sparse', type=str, 
-                           help='Input genotype files in PLINK binary format (prefix for .bed, .bim, .fam)')
+    geno_group.add_argument('-npy','--npy', type=str, 
+                           help='Input genotype files in PLINK binary format (prefix for .npz, .snp, .idv)')
     required_group.add_argument('-p','--pheno', type=str, required=True,
                                help='Phenotype file (tab-delimited with sample IDs in first column)')
     # Optional arguments
@@ -119,9 +119,8 @@ def main(log:bool=True):
         gfile = args.vcf
     elif args.bfile:
         gfile = args.bfile
-    elif args.sparse:
-        gfile = args.sparse
-        raise NotImplementedError('Sparse PLINK format is not yet implemented.')
+    elif args.npy:
+        gfile = args.npy
     # Build argument list for the original script
     sys.argv = [
         sys.argv[0],  # script name
@@ -187,6 +186,7 @@ if not os.path.exists(outfolder):
     os.makedirs(outfolder,mode=0o755)
 prefix = gfile.replace('.vcf','').replace('.gz','')
 
+# Loading genotype matrix
 logger.info(f'Loading phenotype from {phenofile}...')
 pheno = pd.read_csv(rf'{phenofile}',sep='\t') # 第一列是样本ID, 第一行是表型名
 pheno = pheno.groupby(pheno.columns[0]).mean() # 重复样本表型取均值
@@ -197,25 +197,29 @@ if pheno.shape[1]==0:
 if args.vcf:
     logger.info(f'Loading genotype from {gfile}...')
     geno = vcfreader(rf'{gfile}') # VCF format
-    ref_alt = geno.iloc[:,:2]
-    geno = geno.iloc[:,2:].T 
 elif args.bfile:
     logger.info(f'Loading genotype from {gfile}.bed...')
     geno = breader(rf'{gfile}') # PLINK format
-    ref_alt = geno.iloc[:,:2]
-    geno = geno.iloc[:,2:].T
-geno.index = geno.index.astype(str)
-famid = geno.index
+elif args.npy:
+    logger.info(f'Loading genotype from {gfile}.npz...')
+    geno = npyreader(rf'{gfile}') # numpy format
+ref_alt:pd.DataFrame = geno.iloc[:,:2]
+famid = geno.columns[2:].values.astype(str)
+geno = geno.iloc[:,2:].to_numpy(copy=False)
 logger.info('Geno and Pheno are ready!')
 
-qkmodel = ''
+# GRM & PCA
+qkmodel = QK(geno,log=True)
+geno = qkmodel.M
+ref_alt = ref_alt.loc[qkmodel.SNPretain]
+ref_alt.iloc[qkmodel.maftmark,[0,1]] = ref_alt.iloc[qkmodel.maftmark,[1,0]]
+ref_alt['maf'] = qkmodel.maf
 if qcal or kcal:
     if not os.path.exists(f'{prefix}.k.{kinship_method}.txt') or not os.path.exists(f'{prefix}.q.{qdim}.txt') and int(qdim)!=0:
-        qkmodel = QK(geno.values,log=True)
         logger.info(f'Samples and SNP: {geno.shape}')
     if os.path.exists(f'{prefix}.k.{kinship_method}.txt'):
         logger.info(f'* Loading GRM from {prefix}.k.{kinship_method}.txt...')
-        kmatrix = pd.read_csv(f'{prefix}.k.{kinship_method}.txt',sep=r'\s+',header=None).values
+        kmatrix = np.genfromtxt(f'{prefix}.k.{kinship_method}.txt')
     else:    
         logger.info(f'* Calculation method of kinship matrix is {kinship_method}')
         kmatrix = qkmodel.GRM(method=kinship_method)
@@ -223,7 +227,7 @@ if qcal or kcal:
 
     if os.path.exists(f'{prefix}.q.{qdim}.txt'):
         logger.info(f'* Loading Q matrix from {prefix}.q.{qdim}.txt...')
-        qmatrix = pd.read_csv(f'{prefix}.q.{qdim}.txt',sep=r'\s+',header=None).values
+        qmatrix = np.genfromtxt(f'{prefix}.q.{qdim}.txt')
     else:
         if int(qdim) > 0:
             logger.info(f'* Dimension of PC for q matrix is {qdim}')
@@ -242,40 +246,34 @@ else:
     if not kcal and os.path.exists(kinship_method):
         logger.info(f'* Loading GRM from {kinship_method}...')
         kmatrix = np.genfromtxt(kinship_method)
-        
 if cov is not None:
     cov = np.genfromtxt(cov,).reshape(-1,1)
     logger.info(f'Covmatrix {cov.shape}:')
     qmatrix = np.concatenate([qmatrix,cov],axis=1)
-
 logger.info(f'GRM {str(kmatrix.shape)}:')
 logger.info(kmatrix[:5,:5])
 logger.info(f'Qmatrix {str(qmatrix.shape)}:')
 logger.info(qmatrix[:5,:5])
 del qkmodel
 
+# GWAS
 for i in pheno.columns:
     t = time.time()
     logger.info('*'*60)
     p = pheno[i].dropna()
-    famid_pheno = [i for i in famid if i in p] # 对齐样本 以geno顺序为准
-    famid_geno = [i for i in range(len(famid)) if famid[i] in famid_pheno] # 对齐样本 以geno顺序为准
-    p = p.loc[famid_pheno].values.reshape(-1,1)
+    famidretain = np.isin(famid,p.index)
     if len(p)>0:
-        gwasmodel = GWAS(y=p,X=qmatrix[famid_geno,:],kinship=kmatrix[famid_geno,:][:,famid_geno])
-        logger.info(f'''Phenotype: {i}, Number of samples: {len(famid_geno)}, Number of SNP: {geno.shape[1]}, pve of null: {round(gwasmodel.pve,3)}, FAST mode: {FASTmode}''')
-        if FASTmode:
-            results = gwasmodel.gwas(snp=geno.values[famid_geno,:],chunksize=500_000,threads=threads) # gwas running...
-        else:
-            results = gwasmodel.gwasHAC(snp=geno.values[famid_geno,:],chunksize=500_000,threads=threads) # gwas running...
+        gwasmodel = GWAS(y=p.loc[famid[famidretain]].values.reshape(-1,1),X=qmatrix[famidretain],kinship=kmatrix[famidretain][:,famidretain])
+        logger.info(f'''Phenotype: {i}, Number of samples: {np.sum(famidretain)}, Number of SNP: {geno.shape[0]}, pve of null: {round(gwasmodel.pve,3)}, FAST mode: {FASTmode}''')
+        results = gwasmodel.gwas(snp=geno[:,famidretain],chunksize=100_000,threads=threads,fast=FASTmode) # gwas running...
         logger.info(f'Effective number of SNP: {results.shape[0]}')
-        results = pd.DataFrame(results,columns=['beta','se','af','p'],index=ref_alt.index[gwasmodel.snp_retain])
-        results = pd.concat([ref_alt.iloc[gwasmodel.snp_retain,:],results],axis=1)
+        results = pd.DataFrame(results,columns=['beta','se','p'],index=ref_alt.index)
+        results = pd.concat([ref_alt,results],axis=1)
         results = results.reset_index()
         results_save = format_dataframe_for_export(results, scientific_cols=['p'], float_cols=['beta','se','af'])
         results_save.to_csv(f'{outfolder}/{i}.assoc.tsv',sep='\t',index=False)
         logger.info(f'Saved in {outfolder}/{i}.assoc.tsv'.replace('//','/'))
-        del results,results_save,gwasmodel,p,famid_pheno,famid_geno
+        del results,results_save,gwasmodel,p
     else:
         logger.info(f'Phenotype {i} has no overlapping samples with genotype, please check sample id. skipped.\n')
     logger.info(f'Time costed: {round(time.time()-t,2)} secs\n')

@@ -1,14 +1,15 @@
+from matplotlib.style import available
 import numpy as np
 from scipy.optimize import minimize_scalar
 from scipy.stats import norm
 from joblib import Parallel, delayed # for parallel processing
+from tqdm import tqdm
 import gc # garbage collection
-import time
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, 
                         message="invalid value encountered in subtract")
-from .QC import simple_QC
-from .cpu_inspect import get_process_info
+import psutil
+process = psutil.Process()
 
 class GWAS:
     def __init__(self,y:np.ndarray=None,X:np.ndarray=None,kinship:np.ndarray=None,log:bool=True):
@@ -105,7 +106,7 @@ class GWAS:
         sigma2 = rTV_invr/(n-p)
         se = np.sqrt(np.linalg.inv(XTV_invX/sigma2)[-1,-1])
         return beta[-1,0],se,lbd
-    def gwas(self,snp:np.ndarray=None,chunksize=500_000,threads=-1):
+    def gwas(self,snp:np.ndarray=None,chunksize=100_000,fast:bool=False,threads=1):
         '''
         Speed version of mlm
         
@@ -114,81 +115,37 @@ class GWAS:
         
         :return: beta coefficients, standard errors and p-values for each SNP, np.ndarray
         '''
-        num_snp = snp.shape[1]
-        chunk_indexs = [i for i in range(0,num_snp,chunksize)] # reduce the usage od memory
-        chunk_indexs = chunk_indexs + [num_snp] if chunk_indexs[-1] != num_snp else chunk_indexs
-        beta_se_af_p = []
-        snp_retain = np.array([],dtype=bool)
-        t_start = time.time()
-        for ii in range(len(chunk_indexs)-1):
-            gc.collect()
-            snp_chunk = snp[:,chunk_indexs[ii]:chunk_indexs[ii+1]].astype(np.float32)
-            snp_chunk,snp_retain_sub = simple_QC(snp_chunk)
-            maf:np.ndarray = np.mean(snp_chunk,axis=0)/2
-            snp_retain = np.append(snp_retain,snp_retain_sub)
-            snp_chunk = self.Dh@snp_chunk
-            def process_col(i):
-                return self._fit(snp_chunk[:, i])
-            if snp_chunk.shape[1]>0:
-                results = np.array(Parallel(n_jobs=threads)(delayed(process_col)(i) for i in range(snp_chunk.shape[1])))
-                beta_se_af_p.append(np.concatenate([results,maf.reshape(-1,1),2*norm.sf(np.abs(results[:,0]/results[:,1])).reshape(-1,1)],axis=1))
-            if self.log:
-                iter_ratio = chunk_indexs[ii+1]/num_snp
-                time_cost = time.time()-t_start
-                time_left = time_cost/iter_ratio
-                all_time_info = f'''{round(100*iter_ratio,2)}% (time cost: {round(time_cost/60,2)}/{round(time_left/60,2)} mins)'''
-                cpu,mem = get_process_info()
-                print(f'''\rCPU: {cpu}%, Memory: {round(mem,2)} G, Process: {all_time_info}''',end='')
-            del snp_chunk,results # 释放内存
-            gc.collect()
-        print()
-        self.snp_retain = snp_retain
-        return np.concatenate(beta_se_af_p)
-    def gwasHAC(self,snp:np.ndarray=None,chunksize=500_000,threads=-1):
-        '''
-        Speed version of mlm
-        
-        :param snp: Marker matrix, np.ndarray, samples per rows and snp per columns
-        :param chunksize: calculation number per times, int
-        
-        :return: beta coefficients, standard errors and p-values for each SNP, np.ndarray
-        '''
+        m,n = snp.shape
         lbds = []
-        num_snp = snp.shape[1]
-        chunk_indexs = [i for i in range(0,num_snp,chunksize)] # reduce the usage od memory
-        chunk_indexs = chunk_indexs + [num_snp] if chunk_indexs[-1] != num_snp else chunk_indexs
-        beta_se_af_p = []
-        snp_retain = np.array([],dtype=bool)
-        t_start = time.time()
-        for ii in range(len(chunk_indexs)-1):
-            gc.collect()
-            snp_chunk = snp[:,chunk_indexs[ii]:chunk_indexs[ii+1]].astype(np.float32)
-            snp_chunk,snp_retain_sub = simple_QC(snp_chunk)
-            maf:np.ndarray = np.mean(snp_chunk,axis=0)/2
-            snp_retain = np.append(snp_retain,snp_retain_sub)
-            snp_chunk = self.Dh@snp_chunk
-            def process_col(i):
-                '''
-                solving beta and its se in multiprocess
-                '''
-                return self._HACfit(snp_chunk[:, i])
+        beta_se_p = []
+        pbar = tqdm(total=m, desc="Process of GWAS",ascii=True)
+        def ACmode(i):
+            '''
+            solving beta and its se in multiprocess
+            '''
+            return self._HACfit(snp_chunk[:, i])
+        def FASTmode(i):
+            '''
+            solving beta and its se in multiprocess
+            '''
+            return self._fit(snp_chunk[:, i])
+        process_col = FASTmode if fast else ACmode
+        for i in range(0,m,chunksize):
+            i_end = min(i+chunksize,m)
+            snp_chunk = self.Dh@snp[i:i_end].T
             if snp_chunk.shape[1]>0:
                 results = np.array(Parallel(n_jobs=threads)(delayed(process_col)(i) for i in range(snp_chunk.shape[1])))
-                beta_se_af_p.append(np.concatenate([results[:,:-1],maf.reshape(-1,1),2*norm.sf(np.abs(results[:,0]/results[:,1])).reshape(-1,1)],axis=1))
+                beta_se_p.append(np.concatenate([results[:,:-1],2*norm.sf(np.abs(results[:,0]/results[:,1])).reshape(-1,1)],axis=1))
                 lbds.extend(results[:,-1])
             if self.log:
-                iter_ratio = chunk_indexs[ii+1]/num_snp
-                time_cost = time.time()-t_start
-                time_left = time_cost/iter_ratio
-                all_time_info = f'''{round(100*iter_ratio,2)}% (time cost: {round(time_cost/60,2)}/{round(time_left/60,2)} mins)'''
-                cpu,mem = get_process_info()
-                print(f'''\rCPU: {cpu}%, Memory: {round(mem,2)} G, Process: {all_time_info}''',end='')
-            del snp_chunk,results # release memory
+                pbar.update(i_end-i)
+                if i % 10 == 0:
+                    memory = psutil.virtual_memory()
+                    memory_usage = process.memory_info().rss/1024**3
+                    pbar.set_postfix(memory=f'{memory_usage:.2f} GB',total=f'{(memory.used/1024**3):.2f}/{(memory.total/1024**3):.2f} GB')
             gc.collect()
-        print()
-        self.lbd = lbds
-        self.snp_retain = snp_retain
-        return np.concatenate(beta_se_af_p)
+        self.lbd = lbds if not fast else None
+        return np.concatenate(beta_se_p)
     
 if __name__ == '__main__':
     pass

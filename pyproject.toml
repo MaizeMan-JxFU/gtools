@@ -7,8 +7,9 @@ requires-python = "==3.12.*"
 dependencies = [
     "numpy",
     "scipy",
-    "joblib>=1.5.2",
     "psutil",
+    "tqdm",
+    "joblib>=1.5.2",
     "bed-reader==1.0.6",
     "bioplotkit==1.0.2",
 ]
