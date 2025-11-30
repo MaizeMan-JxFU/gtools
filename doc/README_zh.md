@@ -397,7 +397,8 @@ gtools [模块名] [模块命令](后续增加 coloc、gs 等模块)
 ```bash
 gtools gwas -h # 查看帮助
 # 混合线性模型
-gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test
+gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test # vcf format
+gtools gwas --npy example/mouse_hs1940 --pheno example/mouse_hs1940.pheno --out test # numpy format
 # 可视化
 gtools gwasplot --file test/test0.assoc.tsv
 ```
