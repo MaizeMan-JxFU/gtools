@@ -32,9 +32,8 @@ import numpy as np
 import argparse
 import time
 import socket
-import sys
 import os
-from _log import setup_logging
+from _common.log import setup_logging
 
 def format_dataframe_for_export(df:pd.DataFrame, scientific_cols=None, float_cols=None):
     """
@@ -87,7 +86,7 @@ def main(log:bool=True):
                                help='Number of CPU threads to use (-1 for all available cores, default: %(default)s)')
     optional_group.add_argument('-fast','--fast', action='store_true', default=False,
                                help='Enable fast mode for GWAS (default: %(default)s)')
-    optional_group.add_argument('-o', '--out', type=str, default='test',
+    optional_group.add_argument('-o', '--out', type=str, default='.',
                                help='Output directory for results'
                                    '(default: %(default)s)')
     args = parser.parse_args()
@@ -98,14 +97,13 @@ def main(log:bool=True):
         gfile = args.bfile
     elif args.npy:
         gfile = args.npy
-    # create log file
-    if not os.path.exists(args.out):
-        os.mkdir(args.out,0o755)
+    # create output folder and log file
+    os.makedirs(args.out,0o755,exist_ok=True)
     filename = os.path.basename(gfile)
     logger = setup_logging(f'''{args.out}/{filename.replace('.vcf','').replace('.gz','')}.log'''.replace('//','/'))
+    # Print configuration summary
     logger.info('High Performance Linear Mixed Model Solver for Genome-Wide Association Studies')
     logger.info(f'Host: {socket.gethostname()}\n')
-    # Print configuration summary
     if log:
         logger.info("*"*60)
         logger.info("GWAS LMM SOLVER CONFIGURATION")
@@ -119,12 +117,6 @@ def main(log:bool=True):
         logger.info(f"Threads:          {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
         logger.info(f"FAST mode:        {args.fast}")
         logger.info("*"*60 + "\n")
-    
-    # Create output directory if it doesn't exist
-    if not os.path.exists(args.out):
-        os.makedirs(args.out, mode=0o755)
-        if log:
-            print(f"Created output directory: {args.out}")
     return gfile,args,logger
 
 t_start = time.time()

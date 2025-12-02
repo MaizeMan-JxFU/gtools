@@ -11,7 +11,6 @@ Examples:
 Citation:
   https://github.com/MaizeMan-JxFU/gtools/
 '''
-from _readanno import readanno
 from bioplotkit import GWASPLOT
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -19,13 +18,13 @@ import numpy as np
 import argparse
 import time
 import socket
-import sys
 import os
 import matplotlib as mpl
 from bioplotkit.sci_set import color_set
-from _log import setup_logging,logging
+from _common.log import setup_logging,logging
+from _common.readanno import readanno
 
-def main(log:bool=True):
+def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
@@ -75,28 +74,26 @@ def main(log:bool=True):
     args.prefix = os.path.basename(args.file).replace('.tsv','').replace('.txt','') if args.prefix is None else args.prefix
     # create log file
     # Create output directory if it doesn't exist
-    if not os.path.exists(args.out):
-        os.makedirs(args.out, mode=0o755)
+    os.makedirs(args.out, mode=0o755,exist_ok=True)
     logger = setup_logging(f'''{args.out}/{args.prefix}.postGWAS.log'''.replace('//','/'))
-    logger.info('Simple script of GWAS post analysis')
-    logger.info(f'Host: {socket.gethostname()}\n')
     # Print configuration summary
-    if log:
-        if args.noplot:
-            logger.info("*"*60)
-            logger.info("GWAS Visulazation:")
-            logger.info(f"file:          {args.file}")
-            logger.info(f"chr:           {args.chr}")
-            logger.info(f"pos:           {args.pos}")
-            logger.info(f"pvalue:        {args.pvalue}")
-            logger.info(f"threshold:     {args.threshold if args.threshold else '0.05/nSNP'}")
-            logger.info(f"color:         {args.color}")
-        if args.anno:
-            logger.info("GWAS Annotation:")
-            logger.info(f"annotation:    {args.anno}")
-            logger.info(f"annobroad(kb): {args.annobroaden}")
-            logger.info(f"output prefix: {args.out}/{args.prefix}")
-        logger.info("*"*60 + "\n")
+    logger.info('Script of GWAS post analysis')
+    logger.info(f'Host: {socket.gethostname()}\n')
+    logger.info("*"*60)
+    if args.noplot:
+        logger.info("GWAS Visulazation:")
+        logger.info(f"file:          {args.file}")
+        logger.info(f"chr:           {args.chr}")
+        logger.info(f"pos:           {args.pos}")
+        logger.info(f"pvalue:        {args.pvalue}")
+        logger.info(f"threshold:     {args.threshold if args.threshold else '0.05/nSNP'}")
+        logger.info(f"color:         {args.color}")
+    if args.anno:
+        logger.info("GWAS Annotation:")
+        logger.info(f"annotation:    {args.anno}")
+        logger.info(f"annobroad(kb): {args.annobroaden}")
+        logger.info(f"output prefix: {args.out}/{args.prefix}")
+    logger.info("*"*60 + "\n")
     return args,logger
 
 t_start = time.time()

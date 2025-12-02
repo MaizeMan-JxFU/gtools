@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 from gfreader import breader,vcfreader,npyreader
 from pyBLUP import QK
-import pandas as pd
 import numpy as np
 import argparse
 import time
 import socket
-import logging
-import sys
 import os
-from bioplotkit.sci_set import color_set
-from _log import setup_logging
+from _common.log import setup_logging
 
 def main(log:bool=True):
     parser = argparse.ArgumentParser(
