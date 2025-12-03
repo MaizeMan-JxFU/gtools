@@ -62,7 +62,7 @@ Test data in example is from [genetics-statistics/GEMMA](https://github.com/gene
 
 - **pyBLUP** - Core statistical engine
   - `gwas.py` - GWAS class implementing mixed linear model with REML optimization
-  - `QK.py` - Q matrix (population structure) and K matrix (kinship) calculation with memory-optimized chunking
+  - `QK.py` - Q matrix (population structure) and K matrix (kinship) calculation with memory-optimized chunking (deprecated)
   - `QK2.py` - Alternative QK implementation
   - `QC.py` - Quality control functions (MAF, missing rate filters)
   - `mlm.py` - Mixed linear model utilities
