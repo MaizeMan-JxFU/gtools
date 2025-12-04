@@ -82,6 +82,9 @@ def main(log:bool=True):
     optional_group.add_argument('-c','--cov', type=str, default=None,
                                help='Path to Covariance file '
                                    '(default: %(default)s)')
+    optional_group.add_argument('-d','--dom', action='store_true', default=False,
+                               help='Estimate dominance effects '
+                                   '(default: %(default)s)')
     optional_group.add_argument('-t','--thread', type=int, default=-1,
                                help='Number of CPU threads to use (-1 for all available cores, default: %(default)s)')
     optional_group.add_argument('-fast','--fast', action='store_true', default=False,
@@ -116,6 +119,8 @@ def main(log:bool=True):
             logger.info(f"Q matrix:         {args.qcov}")
         if args.cov:
             logger.info(f"Covariant matrix: {args.cov}")
+        if args.dom:
+            logger.info(f"Dominance model:  {args.dom}")
         logger.info(f"Threads:          {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
         logger.info(f"FAST mode:        {args.fast}")
         logger.info("*"*60 + "\n")
@@ -163,6 +168,9 @@ logger.info('Geno and Pheno are ready!')
 # GRM & PCA
 qkmodel = QK(geno)
 geno = qkmodel.M
+if args.dom: # Additive kinship but dominant single SNP
+    np.subtract(geno,1,out=geno)
+    np.absolute(geno, out=geno)
 ref_alt = ref_alt.loc[qkmodel.SNPretain]
 ref_alt.iloc[qkmodel.maftmark,[0,1]] = ref_alt.iloc[qkmodel.maftmark,[1,0]]
 ref_alt['maf'] = qkmodel.maf
