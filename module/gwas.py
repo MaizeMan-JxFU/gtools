@@ -184,7 +184,7 @@ if qcal:
         logger.info(f'* Loading Q matrix from {prefix}.q.{qdim}.txt...')
         qmatrix = np.genfromtxt(f'{prefix}.q.{qdim}.txt')
     elif qdim=="0":
-        qmatrix = np.array([]).reshape(geno.shape[0],0)
+        qmatrix = np.array([]).reshape(geno.shape[1],0)
     else:
         logger.info(f'* Dimension of PC for q matrix is {qdim}')
         qmatrix,eigenval = qkmodel.PCA()
@@ -210,8 +210,7 @@ for i in pheno.columns:
     p = pheno[i].dropna()
     famidretain = np.isin(famid,p.index)
     if len(p)>0:
-        qmatrix_sub = qmatrix[famidretain] if qmatrix.size>0 else None
-        gwasmodel = GWAS(y=p.loc[famid[famidretain]].values.reshape(-1,1),X=qmatrix_sub,kinship=kmatrix[famidretain][:,famidretain])
+        gwasmodel = GWAS(y=p.loc[famid[famidretain]].values.reshape(-1,1),X=qmatrix[famidretain],kinship=kmatrix[famidretain][:,famidretain])
         logger.info(f'''Phenotype: {i}, Number of samples: {np.sum(famidretain)}, Number of SNP: {geno.shape[0]}, pve of null: {round(gwasmodel.pve,3)}, FAST mode: {FASTmode}''')
         results = gwasmodel.gwas(snp=geno[:,famidretain],chunksize=100_000,threads=threads,fast=FASTmode) # gwas running...
         logger.info(f'Effective number of SNP: {results.shape[0]}')
