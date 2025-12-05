@@ -1,9 +1,9 @@
-# gtools：高效的全基因组关联分析及全基因组选择工具
+# JanusX：高效的全基因组关联分析及全基因组选择工具
 
 ## 引言
 
 &emsp;&emsp;随着基因组学研究的深入，海量基因型和表型数据的分析需求日益增长。现有全基因组关联分析(GWAS)软件如GEMMA、GCTA、rMVP和TASSEL等在处理大规模数据时存在一些局限性：GEMMA缺乏Windows版本，跨平台兼容性不足；多核并行计算效率低下；计算亲缘关系矩阵(Q矩阵)依赖外部工具等
-&emsp;&emsp;为解决这些问题，我们基于混合线性模型算法进行了深度优化，开发了pyBLUP工具。该工具在计算效率、跨平台兼容性和易用性方面均有显著提升。源代码已发布[Github仓库](https://github.com/MaizeMan-JxFU/pyBLUP)，欢迎进行测试使用。
+&emsp;&emsp;为解决这些问题，我们基于混合线性模型算法进行了深度优化，开发了JanusX工具。该工具在计算效率、跨平台兼容性和易用性方面均有显著提升。源代码已发布[Github仓库](https://github.com/MaizeMan-JxFU/JanusX)，欢迎进行测试使用。
 
 ## 算法原理
 
@@ -263,13 +263,13 @@ time gcta64 --bfile data/test --pheno data/test.pheno --grm gcta --mlma --out gc
 # sys     60m27.973s
 ```
 
-pyBLUP:
+JanusX:
 
 ```bash
 # 表型预处理
 awk -F "\t" -v OFS="\t" {'print $1,$2'} ~/data_pub/1.database/RiceAtlas/1.pheno.blup.tsv > data/test.pheno
 # 默认开启所有线程 保持和GCTA一致 使用 --thread 92. 和其他方法保持一致不使用q矩阵
-gtools gwas --bfile data/test --pheno data/test.pheno --out . --thread 92 --qcov 0 --grm gemma1
+jx gwas --bfile data/test --pheno data/test.pheno --out . --thread 92 --qcov 0 --grm gemma1
 # High Performance Linear Mixed Model Solver for Genome-Wide Association Studies
 # Host: user-NF5466M6
 
@@ -315,7 +315,7 @@ gtools gwas --bfile data/test --pheno data/test.pheno --out . --thread 92 --qcov
 
 ### 准确性测试
 
-&emsp;&emsp;对上述比较测试中gtools和GEMMA生成的结果进行比较。结果显示，在使用各自计算的亲缘关系矩阵下，即使算法设计一致，也可能由于每一步计算误差的级联反应而对结果产生一定偏差（如下第一张图）；在统一使用GEMMA计算的亲缘关系矩阵的情况下，结果近乎完全一致（如下第二张图）。
+&emsp;&emsp;对上述比较测试中JanusX和GEMMA生成的结果进行比较。结果显示，在使用各自计算的亲缘关系矩阵下，即使算法设计一致，也可能由于每一步计算误差的级联反应而对结果产生一定偏差（如下第一张图）；在统一使用GEMMA计算的亲缘关系矩阵的情况下，结果近乎完全一致（如下第二张图）。
 
 ![ACtest2](../fig/ac_test2.png "Test of accuracy compared with GEMMA"){: style="display: block; margin: 0 auto"}
 
@@ -336,8 +336,8 @@ gtools gwas --bfile data/test --pheno data/test.pheno --out . --thread 92 --qcov
 
 ### 结论
 
-&emsp;&emsp;总体而言，使用统一模型的前提下计算结果一致，pyBLUP相较于其他程序调用多线程更加积极、计算速度更快。
-&emsp;&emsp;那么pyBLUP是完美的吗？当然不是，他的缺点是内存占用显著高于现有的软件，$M_{1,000 \times 1,000,000}$的矩阵内存占用高达12g，是其他软件的内存占用的2-3倍。此外随着个体数的增加，初始化时间（主要是奇异值分解的时间）将会显著增长。而杨剑等的[fast-gwa](https://doi.org/10.1038/s41588-019-0530-8)在2019年就实现了算法改进，使其GWAS模型适用于百万级个体的关联分析。
+&emsp;&emsp;总体而言，使用统一模型的前提下计算结果一致，JanusX相较于其他程序调用多线程更加积极、计算速度更快。
+&emsp;&emsp;那么JanusX是完美的吗？当然不是，他的缺点是内存占用显著高于现有的软件，$M_{1,000 \times 1,000,000}$的矩阵内存占用高达12g，是其他软件的内存占用的2-3倍。此外随着个体数的增加，初始化时间（主要是奇异值分解的时间）将会显著增长。而杨剑等的[fast-gwa](https://doi.org/10.1038/s41588-019-0530-8)在2019年就实现了算法改进，使其GWAS模型适用于百万级个体的关联分析。
 
 ## 使用方法
 
@@ -350,19 +350,19 @@ Linux:
 
 ```bash
 # 网络顺畅的情况
-# git clone https://github.com/MaizeMan-JxFU/gtools.git
+# git clone https://github.com/MaizeMan-JxFU/JanusX.git
 # 不能科学上网可以选择国内代理
-git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/gtools.git
+git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/JanusX.git
 # 进入目标文件夹
-cd gtools; sh ./install.sh
+cd JanusX; sh ./install.sh
 
 ```
 
 Windows
 
 ```powershell
-git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/gtools.git
-cd gtools
+git clone https://gh-proxy.com/https://github.com/MaizeMan-JxFU/JanusX.git
+cd JanusX
 .\install.bat
 
 ```
@@ -371,15 +371,15 @@ cd gtools
 
 |模块|功能|最简语法|
 |-|-|-|
-|gwas|利用混合线性模型进行全基因组关联分析|基因型文件+表型文件: ```gtools gwas --bfile test --pheno test.tsv```|
-|gwasplot|可视化及注释全基因组关联分析的结果|gwas模块生成的结果文件: ```gtools gwasplot --file test.assoc.tsv [--anno anno.gff]```|
-|transanno|gwasplot模块注释结果的迁移基因组版本注释|gwasplot模块生成的注释文件: ```gtools transanno [anno file] [site mapping file] [new gff3 or bed file]```|
-|cpheno|合并同一群体多个表型|同一群体的多个表型文件: ```gtools cpheno --files pheno1.tsv,pheno2.tsv,... --out outprefix```|
+|gwas|利用混合线性模型进行全基因组关联分析|基因型文件+表型文件: ```jx gwas --bfile test --pheno test.tsv```|
+|gwasplot|可视化及注释全基因组关联分析的结果|gwas模块生成的结果文件: ```jx gwasplot --file test.assoc.tsv [--anno anno.gff]```|
+|transanno|gwasplot模块注释结果的迁移基因组版本注释|gwasplot模块生成的注释文件: ```jx transanno [anno file] [site mapping file] [new gff3 or bed file]```|
+|cpheno|合并同一群体多个表型|同一群体的多个表型文件: ```jx cpheno --files pheno1.tsv,pheno2.tsv,... --out outprefix```|
 
 |计划更新模块|功能|最简语法|
 |-|-|-|
-|pca|基于随机奇异值分解计算输入文件行主成分及可视化|基因型文件: ```gtools pca ...```|
-|iqtree|最大似然法计算输入样本的系统发育关系|phy文件: ```gtools iqtree ...```|
+|pca|基于随机奇异值分解计算输入文件行主成分及可视化|基因型文件: ```jx pca ...```|
+|iqtree|最大似然法计算输入样本的系统发育关系|phy文件: ```jx iqtree ...```|
 |...|...|...|
 
 ### 功能1: 全基因组关联分析
@@ -392,19 +392,19 @@ cd gtools
 
 #### 多平台使用
 
-gtools [模块名] [模块命令](后续增加 coloc、gs 等模块)
+jx [模块名] [模块命令](后续增加 coloc、gs 等模块)
 
 ```bash
-gtools gwas -h # 查看帮助
+jx gwas -h # 查看帮助
 # 混合线性模型
-gtools gwas -vcf example/mouse_hs1940.vcf.gz -p example/mouse_hs1940.pheno -o test # vcf format
-gtools gwas -npy example/mouse_hs1940 -p example/mouse_hs1940.pheno -o test # numpy format
+jx gwas -vcf example/mouse_hs1940.vcf.gz -p example/mouse_hs1940.pheno -o test # vcf format
+jx gwas -npy example/mouse_hs1940 -p example/mouse_hs1940.pheno -o test # numpy format
 # 可视化
-gtools postGWAS -file test/test0.assoc.tsv -threshold 1e-6
+jx postGWAS -file test/test0.assoc.tsv -threshold 1e-6
 ```
 
 使用example文件夹下的[测试数据](https://doi.org/10.1038/ng.3609)输出结果如下所示：
-![GWAStest](../fig/test0.png "GWAS test of pyBLUP"){: style="display: block; margin: 0 auto"}
+![GWAStest](../fig/test0.png "GWAS test of JanusX"){: style="display: block; margin: 0 auto"}
 *(The above image depicts physiological and behavioral trait loci identified in CFW mice using GEMMA, from Parker et al, Nature Genetics, 2016.)
 
 ### 功能2: 全基因组选择
@@ -413,5 +413,5 @@ xxx
 
 ## 写在最后
 
-更新计划：重写bed_reader函数，获得更高效的基因型编码方式，从而降低内存占用；优化biokitplot中的GWASplot函数，使其绘制千万级别位点的速度更快、内存占用更低。混合线性模型中加入牛顿法，解决多随机效应方差估计的问题（目前pyBLUP只能引入单一随机效应，例如亲缘关系）。
-更多用法可以访问[Github仓库](https://github.com/MaizeMan-JxFU/pyBLUP)，仍在更新中...
+更新计划：重写bed_reader函数，获得更高效的基因型编码方式，从而降低内存占用；优化biokitplot中的GWASplot函数，使其绘制千万级别位点的速度更快、内存占用更低。混合线性模型中加入牛顿法，解决多随机效应方差估计的问题（目前JanusX只能引入单一随机效应，例如亲缘关系）。
+更多用法可以访问[Github仓库](https://github.com/MaizeMan-JxFU/JanusX)，仍在更新中...

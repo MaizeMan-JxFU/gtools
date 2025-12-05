@@ -9,7 +9,7 @@ Examples:
   -f result.assoc.txt -chr "chr" -pos "pos" -pvalue "P_wald" --out test # it will saved in test/result.assoc.qq.pdf and test/result.assoc.manh.pdf
         
 Citation:
-  https://github.com/MaizeMan-JxFU/gtools/
+  https://github.com/MaizeMan-JxFU/JanusX/
 '''
 import os
 for key in ['MPLBACKEND']:

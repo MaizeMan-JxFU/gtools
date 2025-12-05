@@ -21,7 +21,7 @@ File Formats:
   COV File:    Space/tab-delimited covariate matrix file
         
 Citation:
-  https://github.com/MaizeMan-JxFU/gtools/
+  https://github.com/MaizeMan-JxFU/JanusX/
 '''
 
 from pyBLUP import GWAS,LM

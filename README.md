@@ -1,19 +1,19 @@
-# GTOOLS
+# JanusX
 
 [English](./README.md) | [简体中文(推荐)](./doc/README_zh.md)
 
 ## Project Overview
 
-gtools is a high-performance toolkit for Genome-Wide Association Studies (GWAS) and genomic selection, built on mixed linear models (MLM). It provides significant performance improvements over tools like GEMMA, GCTA, and rMVP, especially in multi-threaded computation.
+JanusX is a high-performance toolkit for Genome-Wide Association Studies (GWAS) and genomic selection, built on mixed linear models (MLM). It provides significant performance improvements over tools like GEMMA, GCTA, and rMVP, especially in multi-threaded computation.
 
 ## Development Setup
 
 ### Installation
 
 ```bash
-git clone https://github.com/MaizeMan-JxFU/gtools.git
+git clone https://github.com/MaizeMan-JxFU/JanusX.git
 # Linux/macOS
-cd gtools; sh ./install.sh
+cd JanusX; sh ./install.sh
 # # Windows
 # .\install.bat
 ```
@@ -24,10 +24,10 @@ The install scripts use `uv` for dependency management and create a virtual envi
 
 ```bash
 # Linux/macOS
-./gtools <module> [options]
+./jx <module> [options]
 
 # Windows
-.\gtools.bat <module> [options]
+.\jx <module> [options]
 ```
 
 ### Available Modules
@@ -43,13 +43,13 @@ The install scripts use `uv` for dependency management and create a virtual envi
 
 ```bash
 # GWAS with VCF input
-gtools gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test
+jx gwas --vcf example/mouse_hs1940.vcf.gz --pheno example/mouse_hs1940.pheno --out test
 
 # GWAS with PLINK format
-gtools gwas --bfile genotypes --pheno phenotypes.txt --out results --grm 1 --qcov 3 --thread 8
+jx gwas --bfile genotypes --pheno phenotypes.txt --out results --grm 1 --qcov 3 --thread 8
 
 # Visualize GWAS results
-gtools postGWAS --file test/test0.assoc.tsv --threshold 1e-6
+jx postGWAS --file test/test0.assoc.tsv --threshold 1e-6
 ```
 
 ![manhanden&qq](./fig/test0.png "Simple visualization")
@@ -60,7 +60,7 @@ Test data in example is from [genetics-statistics/GEMMA](https://github.com/gene
 
 ### Core Libraries (src/)
 
-- **pyBLUP** - Core statistical engine
+- **JanusX** - Core statistical engine
   - `gwas.py` - GWAS class implementing mixed linear model with REML optimization
   - `QK.py` - Q matrix (population structure) and K matrix (kinship) calculation with memory-optimized chunking (deprecated)
   - `QK2.py` - Alternative QK implementation
@@ -81,7 +81,7 @@ Test data in example is from [genetics-statistics/GEMMA](https://github.com/gene
 
 ### CLI Entry Points (module/)
 
-Each module corresponds to a CLI command. The launcher script (`gtools.bat`/`gtools`) dispatches to `module/<name>.py`.
+Each module corresponds to a CLI command. The launcher script (`jx.bat`/`jx`) dispatches to `module/<name>.py`.
 
 ### Key Algorithms
 

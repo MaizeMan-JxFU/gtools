@@ -1,5 +1,5 @@
 [project]
-name = "gtools"
+name = "JanusX"
 version = "0.1.0"
 description = "A Suite of Genotyping Tools"
 readme = "README.md"
