@@ -14,13 +14,13 @@ class QK:
         M = M.copy() if Mcopy else M
         NAmark = M<0
         miss = np.sum(NAmark,axis=1) # Missing number of idv
-        M[NAmark] = 0 # Impute using mode
-        del NAmark
         maf:np.ndarray = (np.sum(M,axis=1)+1)/(2*(M.shape[1]-miss)+2)
         # Filter
         maftmark = maf>.5
         maf[maftmark] = 1 - maf[maftmark]
         np.subtract(2, M, where=maftmark[:, None], out=M)
+        M[NAmark] = 0 # Impute using mode
+        del NAmark
         SNPretain = (miss/M.shape[1]<=missf) & (maf>=maff)
         M = M[SNPretain]
         maf = maf[SNPretain]

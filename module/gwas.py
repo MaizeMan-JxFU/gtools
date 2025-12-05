@@ -169,6 +169,7 @@ logger.info('Geno and Pheno are ready!')
 qkmodel = QK(geno)
 geno = qkmodel.M
 if args.dom: # Additive kinship but dominant single SNP
+    logger.info('Transfer additive gmatrix to dominance gmatrix')
     np.subtract(geno,1,out=geno)
     np.absolute(geno, out=geno)
 ref_alt = ref_alt.loc[qkmodel.SNPretain]
