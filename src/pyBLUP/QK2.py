@@ -13,6 +13,7 @@ class QK:
         '''
         M = M.copy() if Mcopy else M
         NAmark = M<0
+        M[NAmark] = 0 # Impute using mode
         miss = np.sum(NAmark,axis=1) # Missing number of idv
         maf:np.ndarray = (np.sum(M,axis=1)+1)/(2*(M.shape[1]-miss)+2)
         # Filter
