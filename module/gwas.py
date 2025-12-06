@@ -208,7 +208,7 @@ if args.chrloc:
     chr_loc = np.array(args.chrloc.split(':'),dtype=np.int32)
     chr,start,end = chr_loc[0],np.min(chr_loc[1:]),np.max(chr_loc[1:])
     onlySNP = ref_alt.index.to_frame().values
-    filt1 = onlySNP[:,0]==chr
+    filt1 = onlySNP[:,0].astype(str)==str(chr)
     filt2 = (onlySNP[filt1,1]<=end) & (onlySNP[filt1,1]>=start)
     if start == 0 and end == 0:
         geno = geno[filt1]

@@ -1,6 +1,17 @@
 # -*- coding: utf-8 -*-
-import sys
 import os
+for key in ['MPLBACKEND']:
+    if key in os.environ:
+        del os.environ[key]
+import matplotlib as mpl
+import logging
+mpl.use('Agg')
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
+logging.getLogger('fontTools.subset').setLevel(logging.ERROR)
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+from bioplotkit.sci_set import color_set
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import argparse
@@ -10,6 +21,7 @@ from _common.log import setup_logging
 from gfreader import breader,vcfreader,npyreader
 from pyBLUP import QK,BLUP,kfold
 
+
 def main(log:bool=True):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -18,6 +30,7 @@ def main(log:bool=True):
     # Required arguments
     required_group = parser.add_argument_group('Required Arguments')
     geno_group = required_group.add_mutually_exclusive_group(required=True)
+    ## Genotype file
     geno_group.add_argument('-vcf','--vcf', type=str, 
                            help='Input genotype file in VCF format (.vcf or .vcf.gz)')
     geno_group.add_argument('-bfile','--bfile', type=str, 
@@ -32,6 +45,9 @@ def main(log:bool=True):
     ## Point out phenotype or snp
     optional_group.add_argument('-n','--ncol', type=int, default=None,
                                help='Only analysis n columns in phenotype ranged from 0-n '
+                                   '(default: %(default)s)')
+    optional_group.add_argument('-plot','--plot', action='store_true', default=False,
+                               help='Visualization of 5-fold cross-validation and different model tree '
                                    '(default: %(default)s)')
     optional_group.add_argument('-o', '--out', type=str, default=None,
                                help='Output directory for results'
@@ -66,6 +82,8 @@ def main(log:bool=True):
         logger.info(f"Genotype file:   {gfile}")
         logger.info(f"Phenotype file:  {args.pheno}")
         logger.info(f"Analysis Pcol:   {args.ncol}") if args.ncol is not None else logger.info(f"Analysis Pcol:   All")
+        if args.plot:
+            logger.info(f"Plot mode:       {args.plot}")
         logger.info(f"Output prefix:   {args.out}/{args.prefix}")
         logger.info("*"*60 + "\n")
     return gfile,args,logger
@@ -116,9 +134,28 @@ if __name__ == '__main__':
             TrainSNP = geno[:,trainmark]
             TrainP = p.loc[samples[trainmark]].values.reshape(-1,1)
             if TrainP.size > 0:
-                for test,train in  kfold(TrainSNP.shape[1],k=5,seed=1):
+                test4train = []
+                train4train = []
+                for test,train in kfold(TrainSNP.shape[1],k=5,seed=1):
                     model = BLUP(TrainP[train],TrainSNP[:,train],kinship=None)
-                    logger.info(np.corrcoef(np.concatenate([TrainP[test],model.predict(TrainSNP[:,test])],axis=1),rowvar=False)[0,1])
+                    print(TrainP[test].shape)
+                    test4train.append(np.concatenate([TrainP[test],model.predict(TrainSNP[:,test]),np.array(train)],axis=1))
+                    train4train.append(np.concatenate([TrainP[train],model.predict(TrainSNP[:,train])],axis=1))
+                    # logger.info(np.corrcoef(np.concatenate([TrainP[test],model.predict(TrainSNP[:,test])],axis=1),rowvar=False)[0,1])
+                test4train = np.concatenate(test4train,axis=0)
+                train4train = np.concatenate(train4train,axis=0)
+                print(train4train.shape)
+                if args.plot:
+                    fig = plt.figure(figsize=(5,4),dpi=300)
+                    plt.scatter(train4train[:,0],train4train[:,1],color=color_set[0][0],alpha=.8,label='Train data')
+                    plt.scatter(test4train[:,0],test4train[:,1],color=color_set[0][1],alpha=.6,label='Test data')
+                    plt.plot([np.min(test4train),np.max(test4train)],[np.min(test4train),np.max(test4train)],linestyle='--',color=color_set[0][0],alpha=.8,label='y = x (Ideal)')
+                    plt.xlabel('True Values')
+                    plt.ylabel('Predicted Values')
+                    plt.legend()
+                    plt.tight_layout()
+                    plt.grid(True, alpha=0.3, axis='both')
+                    plt.savefig(f'{args.out}/{args.prefix}.{i}.gs.5fcv.pdf',transparent=True)
                 # Prediction for test population
                 TestSNP = geno[:,testmark]
                 model = BLUP(TrainP,TrainSNP,)
