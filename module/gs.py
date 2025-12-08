@@ -63,10 +63,10 @@ def GSapi(Y:np.ndarray,Xtrain:np.ndarray,Xtest:np.ndarray,method:typing.Literal[
         return grid.predict(Xtrain.T).reshape(-1,1),grid.predict(Xtest.T).reshape(-1,1)
     elif method == 'AdaBoost':
         param_grid = {
-            'C': [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2],
-            'gamma': ['scale', 0.01, 0.1]
+            'n_estimators': range(50,500,50),
+            'learning_rate': [0.01, 0.1, 0.5, 1]
         }
-        grid = GridSearchCV(SVR(), param_grid, cv=5, n_jobs=-1)
+        grid = GridSearchCV(AdaBoostRegressor(), param_grid, cv=5, n_jobs=-1)
         grid.fit(Xtrain.T, Y.flatten())
         return grid.predict(Xtrain.T).reshape(-1,1),grid.predict(Xtest.T).reshape(-1,1)
 
@@ -96,11 +96,14 @@ def main(log:bool=True):
     model_group.add_argument('-rrBLUP','--rrBLUP', action='store_true', default=False,
                                help='Method of rrBLUP to train and predict '
                                    '(default: %(default)s)')
+    model_group.add_argument('-SVM','--SVM', action='store_true', default=False,
+                               help='Method of support vector machine to train and predict '
+                                   '(default: %(default)s)')
     model_group.add_argument('-RF','--RF', action='store_true', default=False,
                                help='Method of random forest to train and predict '
                                    '(default: %(default)s)')
-    model_group.add_argument('-SVM','--SVM', action='store_true', default=False,
-                               help='Method of support vector machine to train and predict '
+    model_group.add_argument('-ADB','--AdaBoost', action='store_true', default=False,
+                               help='Method of AdaBoost to train and predict '
                                    '(default: %(default)s)')
     model_group.add_argument('-pcd','--pcd', action='store_true', default=False,
                                help='Decomposition of data by PCA '
@@ -155,12 +158,15 @@ def main(log:bool=True):
         if args.rrBLUP:
             num += 1
             logger.info(f"Used model{num}:     rrBLUP")
-        if args.RF:
-            num += 1
-            logger.info(f"Used model{num}:     Random Forest")
         if args.SVM:
             num += 1
             logger.info(f"Used model{num}:     Support vecter machine")
+        if args.RF:
+            num += 1
+            logger.info(f"Used model{num}:     Random Forest")
+        if args.AdaBoost:
+            num += 1
+            logger.info(f"Used model{num}:     AdaBoost")
         logger.info(f"Decomposition:   {args.pcd}")
         if args.plot:
             logger.info(f"Plot mode:       {args.plot}")
@@ -189,6 +195,8 @@ if __name__ == '__main__':
         methods.append('SVM')
     if args.RF:
         methods.append('RF')
+    if args.AdaBoost:
+        methods.append('AdaBoost')
     assert len(methods) > 0, 'No method exists'
     if args.vcf:
         logger.info(f'Loading genotype from {gfile}...')

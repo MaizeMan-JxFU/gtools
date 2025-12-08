@@ -251,8 +251,9 @@ if cov:
     qmatrix = np.concatenate([qmatrix,cov],axis=1)
 if args.csnp:
     chr_loc = args.csnp.split(':')
-    chr,start = chr_loc[0],chr_loc[1]
-    cov = geno[ref_alt.index.get_loc((int(chr),int(start)))].reshape(-1,1)
+    chr_loc_index = ref_alt.reset_index().iloc[:,:2].astype(str)
+    chr_loc_index = pd.Index(chr_loc_index.iloc[:,0]+':'+chr_loc_index.iloc[:,1])
+    cov = geno[chr_loc_index.get_loc(args.csnp)].reshape(-1,1)
     logger.info(f'Covmatrix {cov.shape}:')
     qmatrix = np.concatenate([qmatrix,cov],axis=1)
 logger.info(f'GRM {str(kmatrix.shape)}:')
