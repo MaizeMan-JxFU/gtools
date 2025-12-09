@@ -108,7 +108,11 @@ def GRM(M:np.ndarray,log=False,chunksize=50_000):
     for i in range(0,m,chunksize):
         i_end = min(i+chunksize,m)
         block_i = M[i:i_end]-Mmean[i:i_end]
-        grm+=block_i.T@block_i/Mvar_sum
+        for j in range(0, n, 200):  # 内部分块
+            j_end = min(j + 200, n)
+            block_j = block_i[:, j:j_end]
+            grm[j:j_end, :] += np.dot(block_j.T, block_i) / Mvar_sum
+        # grm+=block_i.T@block_i/Mvar_sum
         if log:
             pbar.update(i_end-i)
             if i % 10 == 0:
