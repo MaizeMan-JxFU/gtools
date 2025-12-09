@@ -60,6 +60,8 @@ def main():
                                help='disabling plot manhanden figure (default: %(default)s)')
     optional_group.add_argument('-color','--color', type=int, default=0,
                                help='Color style for manhanden and qq figure, 0-6 (default: %(default)s)')
+    optional_group.add_argument('-hl','--highlight', type=str, default=None,
+                               help='Hightlight SNP with gene name in .bed file, eg. 1\t100021\t100021\tgenename\tfunction (default: %(default)s)')
     optional_group.add_argument('-a','--anno', type=str, default=None,
                                help='annotation option, .gff file or .bed file'
                                    '(default: %(default)s)')
@@ -89,19 +91,20 @@ def main():
     logger.info('Script of GWAS post analysis')
     logger.info(f'Host: {socket.gethostname()}\n')
     logger.info("*"*60)
+    logger.info(f"File:          {args.file}")
+    logger.info(f"Chr tag:       {args.chr}")
+    logger.info(f"Pos tag:       {args.pos}")
+    logger.info(f"Pvalue tag:    {args.pvalue}")
     if args.noplot:
         logger.info("GWAS Visulazation:")
-        logger.info(f"file:          {args.file}")
-        logger.info(f"chr:           {args.chr}")
-        logger.info(f"pos:           {args.pos}")
-        logger.info(f"pvalue:        {args.pvalue}")
-        logger.info(f"threshold:     {args.threshold if args.threshold else '0.05/nSNP'}")
-        logger.info(f"color:         {args.color}")
+        logger.info(f"Threshold:     {args.threshold if args.threshold else '0.05/nSNP'}")
+        logger.info(f"Color:         {args.color}")
+        logger.info(f'Highlight bed: {args.highlight}')
     if args.anno:
         logger.info("GWAS Annotation:")
-        logger.info(f"annotation:    {args.anno}")
-        logger.info(f"annobroad(kb): {args.annobroaden}")
-        logger.info(f"output prefix: {args.out}/{args.prefix}")
+        logger.info(f"Anno file:     {args.anno}")
+        logger.info(f"Annobroad(kb): {args.annobroaden}")
+        logger.info(f"Output prefix: {args.out}/{args.prefix}")
     logger.info("*"*60 + "\n")
     return args,logger
 
@@ -117,7 +120,21 @@ if args.noplot:
     plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
     fig = plt.figure(figsize=(8,4),dpi=300)
     ax =fig.add_subplot(111,)
-    plotmodel.manhattan(-np.log10(threshold),ax=ax,color_set=args.color)
+    if args.highlight:
+        df_hl = pd.read_csv(args.highlight,sep='\t',index_col=None,header=None,)
+        genenamemask = df_hl[3].isna()
+        df_hl.loc[genenamemask,3] = df_hl.loc[genenamemask,0].astype(str)+'_'+df_hl.loc[genenamemask,1].astype(str)
+        df_hl = df_hl.set_index([0,1])
+        df_hl_idx = df_hl.index[df_hl.index.isin(plotmodel.df.index)]
+        assert len(df_hl_idx)>0, 'Nothing to highlight, check bed file.'
+        ax.scatter(plotmodel.df.loc[df_hl_idx,'x'],-np.log10(plotmodel.df.loc[df_hl_idx,'y']),marker='D',color='red',zorder=10,s=32,edgecolors='black')
+        ax.hlines(y=-np.log10(threshold),xmin=-1e10,xmax=1e10,linestyle='dashed',color='grey')
+        for idx in df_hl_idx:
+            text = df_hl.loc[idx,3]
+            ax.text(plotmodel.df.loc[idx,'x'],-np.log10(plotmodel.df.loc[idx,'y']),s=text,ha='center',zorder=11)
+        plotmodel.manhattan(None,ax=ax,color_set=args.color,ignore=df_hl_idx)
+    else:
+        plotmodel.manhattan(-np.log10(threshold),ax=ax,color_set=args.color)
     plt.tight_layout()
     plt.savefig(f'{args.out}/{args.prefix}.manh.pdf',transparent=True)
     plt.close()
