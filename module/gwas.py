@@ -62,7 +62,7 @@ def main(log:bool=True):
                                    '(default: %(default)s)')
     ## Point out phenotype or snp
     optional_group.add_argument('-n','--ncol', type=int, default=None,
-                               help='Only analysis n columns in phenotype ranged from 0-n '
+                               help='Only analysis n columns in phenotype ranged from 0-n, 0 is the first phenotype '
                                    '(default: %(default)s)')
     optional_group.add_argument('-cl','--chrloc', type=str, default=None,
                                help='Only analysis ranged SNP, eg. 1:1000000:3000000 '

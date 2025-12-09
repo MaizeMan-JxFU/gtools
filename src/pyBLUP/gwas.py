@@ -22,9 +22,13 @@ class GWAS:
         self.log = log
         y = y.reshape(-1,1) # ensure the dim of y
         X = np.concatenate([np.ones((y.shape[0],1)),X],axis=1) if X is not None else np.ones((y.shape[0],1))
-        self.D, self.S, self.Dh = np.linalg.svd(kinship + 1e-6 * np.eye(y.shape[0])) # simplify G matrix for solve inversed matrix
+        # Simplify inverse matrix
+        val,vec = np.linalg.eigh(self.Z@self.G@self.Z.T)
+        idx = np.argsort(val)[::-1]
+        val,vec = val[idx],vec[:, idx]
+        self.S,self.Dh = val, vec.T
+        # self.D, self.S, self.Dh = np.linalg.svd(kinship + 1e-6 * np.eye(y.shape[0])) # simplify G matrix for solve inversed matrix
         del kinship
-        del self.D
         self.Xcov = self.Dh@X
         self.y = self.Dh@y
         result = minimize_scalar(lambda lbd: -self._NULLREML(10**(lbd)),bounds=(-8,8),method='bounded',options={'xatol': 1e-3},)

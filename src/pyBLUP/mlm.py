@@ -30,7 +30,11 @@ class BLUP:
             self.G = np.eye(M.shape[0])
             self.Z = Z@M.T
         # Simplify inverse matrix
-        self.D, self.S, self.Dh = np.linalg.svd(self.Z@self.G@self.Z.T)
+        val,vec = np.linalg.eigh(self.Z@self.G@self.Z.T)
+        idx = np.argsort(val)[::-1]
+        val,vec = val[idx],vec[:, idx]
+        self.S,self.Dh = val, vec.T
+        # self.D,self.S,self.Dh = np.linalg.svd(self.Z@self.G@self.Z.T)
         self.X = self.Dh@self.X
         self.y = self.Dh@self.y
         self.Z = self.Dh@self.Z
