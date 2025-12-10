@@ -158,7 +158,7 @@ assert cov is None or os.path.isfile(cov), f"{cov} is applied, but it is not a f
 t_loading = time.time()
 logger.info('* Loading genotype and phenotype')
 if not args.npy:
-    logger.info('Recommended: Use numpy format of genotype matrix (gformat can be used to transfer)')
+    logger.info('Recommended: Use numpy format of genotype matrix (just use gformat module to transfer)')
 logger.info(f'Loading phenotype from {phenofile}...')
 pheno = pd.read_csv(rf'{phenofile}',sep='\t') # Col 1 - idv ID; row 1 - pheno tag
 pheno = pheno.groupby(pheno.columns[0]).mean() # Mean of duplicated samples

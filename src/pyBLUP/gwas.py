@@ -30,13 +30,13 @@ class GWAS:
         del kinship
         self.Xcov = self.Dh@X
         self.y = self.Dh@y
-        result = minimize_scalar(lambda lbd: -self._NULLREML(10**(lbd)),bounds=(-8,8),method='bounded',options={'xatol': 1e-3},)
+        result = minimize_scalar(lambda lbd: -self._NULLREML(10**(lbd)),bounds=(-8,8),method='bounded',options={'xatol': 1e-4,'maxiter':500},)
         lbd_null = 10**(result.x[0,0])
         vg_null = np.mean(self.S)
         pve = vg_null/(vg_null+lbd_null)
         self.lbd_null = lbd_null
         self.pve = pve
-        self.bounds = (np.log10(lbd_null)-2,np.log10(lbd_null)+2)
+        self.bounds = (np.log10(lbd_null)-3,np.log10(lbd_null)+3)
         pass
     def _NULLREML(self,lbd: float):
         '''Restricted Maximum Likelihood Estimation (REML) of NULL'''
