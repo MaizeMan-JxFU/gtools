@@ -61,7 +61,7 @@ def main(log:bool=True):
                                help='Additional calculation of general model '
                                    '(default: %(default)s)')
     ## Point out phenotype or snp
-    optional_group.add_argument('-n','--ncol', type=int, default=None,
+    optional_group.add_argument('-n','--ncol', action='extend', nargs='*',default=None,type=int,
                                help='Only analysis n columns in phenotype ranged from 0-n, 0 is the first phenotype '
                                    '(default: %(default)s)')
     optional_group.add_argument('-cl','--chrloc', type=str, default=None,
@@ -159,16 +159,18 @@ t_loading = time.time()
 logger.info('* Loading genotype and phenotype')
 if not args.npy:
     logger.info('Recommended: Use numpy format of genotype matrix (just use gformat module to transfer)')
-logger.info(f'Loading phenotype from {phenofile}...')
+logger.info(f'** Loading phenotype from {phenofile}...')
 pheno = pd.read_csv(rf'{phenofile}',sep='\t') # Col 1 - idv ID; row 1 - pheno tag
 pheno = pheno.groupby(pheno.columns[0]).mean() # Mean of duplicated samples
 pheno.index = pheno.index.astype(str)
 assert pheno.shape[1]>0, f'No phenotype data found, please check the phenotype file format!\n{pheno.head()}'
 if args.ncol is not None: 
-    assert args.ncol <= pheno.shape[1], "IndexError: Phenotype column index out of range."
-    pheno = pheno.iloc[:,[args.ncol]]
+    assert np.min(args.ncol) <= pheno.shape[1], "IndexError: Phenotype column index out of range."
+    args.ncol = [i for i in args.ncol if i in range(pheno.shape[1])]
+    logger.info(f'''These phenotype will be analyzed: {'\t'.join(pheno.columns[args.ncol])}''',)
+    pheno = pheno.iloc[:,args.ncol]
 if args.vcf:
-    logger.info(f'Loading genotype from {gfile}...')
+    logger.info(f'** Loading genotype from {gfile}...')
     geno = vcfreader(rf'{gfile}') # VCF format
 elif args.bfile:
     logger.info(f'Loading genotype from {gfile}.bed...')
