@@ -14,6 +14,11 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     exit 0
 fi
 
+if [ "$1" = "-v" ] || [ "$1" = "--version" ]; then
+    echo "JanusX v1.0.0"
+    exit 0
+fi
+
 if [ -f "$MODULE_DIR/$MODULE.py" ];then
     shift
     $VENV_PYLAUCH -u $MODULE_DIR/$MODULE.py $@
