@@ -24,7 +24,6 @@ import argparse
 import time
 import socket
 from _common.log import setup_logging
-from _common.outformat import format_dataframe_for_export
 from gfreader import breader,vcfreader,npyreader
 from pyBLUP import QK,BLUP,kfold
 
@@ -72,6 +71,7 @@ def GSapi(Y:np.ndarray,Xtrain:np.ndarray,Xtest:np.ndarray,method:typing.Literal[
         return grid.predict(Xtrain.T).reshape(-1,1),grid.predict(Xtest.T).reshape(-1,1)
 
 def main(log:bool=True):
+    t_start = time.time()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
@@ -171,11 +171,7 @@ def main(log:bool=True):
             logger.info(f"Plot mode:       {args.plot}")
         logger.info(f"Output prefix:   {args.out}/{args.prefix}")
         logger.info("*"*60 + "\n")
-    return gfile,args,logger
-
-if __name__ == '__main__':
-    t_start = time.time()
-    gfile,args,logger = main()
+        
     t_loading = time.time()
     logger.info(f'Loading phenotype from {args.pheno}...')
     pheno = pd.read_csv(rf'{args.pheno}',sep='\t') # Col 1 - idv ID; row 1 - pheno tag
@@ -262,9 +258,11 @@ if __name__ == '__main__':
                 _TrainP,TestP = GSapi(TrainP,TrainSNP,TestSNP,method=method,PCAdec=args.pcd)
                 outpred.append(TestP)
             outpred = pd.DataFrame(np.concatenate(outpred,axis=1),columns=methods,index=samples[testmark])
-            outpred = format_dataframe_for_export(outpred,float_cols=methods)
-            outpred.to_csv(f'{args.out}/{args.prefix}.{i}.gs.tsv',sep='\t')
+            outpred.to_csv(f'{args.out}/{args.prefix}.{i}.gs.tsv',sep='\t',float_format='%.4f')
             logger.info(f'Saved in {args.out}/{args.prefix}.{i}.gs.tsv'.replace('//','/'))
     lt = time.localtime()
     endinfo = f'\nFinished, total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
     logger.info(endinfo)
+
+if __name__ == "__main__":
+    main()

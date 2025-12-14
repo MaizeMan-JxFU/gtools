@@ -9,6 +9,7 @@ import os
 from _common.log import setup_logging
 
 def main(log:bool=True):
+    t_start = time.time()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
@@ -66,40 +67,40 @@ def main(log:bool=True):
             logger.info(f"Saved as npyz: {args.npz}")
         logger.info(f"Output prefix: {args.out}/{args.prefix}")
         logger.info("*"*60 + "\n")
-    return gfile,args,logger
 
-t_start = time.time()
-gfile,args,logger = main()
 
-t_loading = time.time()
-if args.vcf:
-    logger.info(f'Loading genotype from {gfile}...')
-    geno = vcfreader(rf'{gfile}') # VCF format
-elif args.bfile:
-    logger.info(f'Loading genotype from {gfile}.bed...')
-    geno = breader(rf'{gfile}') # PLINK format
-elif args.npy:
-    logger.info(f'Loading genotype from {gfile}.npz...')
-    geno = npyreader(rf'{gfile}') # numpy format
-logger.info(f'Completed, cost: {round(time.time()-t_loading,3)} secs')
+    t_loading = time.time()
+    if args.vcf:
+        logger.info(f'Loading genotype from {gfile}...')
+        geno = vcfreader(rf'{gfile}') # VCF format
+    elif args.bfile:
+        logger.info(f'Loading genotype from {gfile}.bed...')
+        geno = breader(rf'{gfile}') # PLINK format
+    elif args.npy:
+        logger.info(f'Loading genotype from {gfile}.npz...')
+        geno = npyreader(rf'{gfile}') # numpy format
+    logger.info(f'Completed, cost: {round(time.time()-t_loading,3)} secs')
 
-m,n = geno.shape
-n = n - 2
-logger.info('* Calculating GRM...')
-logger.info(f'Loaded SNP: {m}, individual: {n}')
-samples = geno.columns[2:]
-geno = geno.iloc[:,2:].values
-qkmodel = QK(geno)
-logger.info(f'Effective SNP: {qkmodel.M.shape[0]}')
-grm = qkmodel.GRM(method=args.method)
-del qkmodel
-if args.npz:
-    np.savetxt(f'{args.out}/{args.prefix}.grm.id',samples.values,fmt='%s');np.savez_compressed(f'{args.out}/{args.prefix}.grm')
-    logger.info(f'Saved in {args.out}:\n{args.prefix}.grm.id {args.prefix}.grm.npz')
-else:
-    np.savetxt(f'{args.out}/{args.prefix}.grm.id',samples.values,fmt='%s');np.savetxt(f'{args.out}/{args.prefix}.grm.txt',grm,fmt='%.6f')
-    logger.info(f'Saved in {args.out}:\n{args.prefix}.grm.id {args.prefix}.grm.txt')
+    m,n = geno.shape
+    n = n - 2
+    logger.info('* Calculating GRM...')
+    logger.info(f'Loaded SNP: {m}, individual: {n}')
+    samples = geno.columns[2:]
+    geno = geno.iloc[:,2:].values
+    qkmodel = QK(geno)
+    logger.info(f'Effective SNP: {qkmodel.M.shape[0]}')
+    grm = qkmodel.GRM(method=args.method)
+    del qkmodel
+    if args.npz:
+        np.savetxt(f'{args.out}/{args.prefix}.grm.id',samples.values,fmt='%s');np.savez_compressed(f'{args.out}/{args.prefix}.grm')
+        logger.info(f'Saved in {args.out}:\n{args.prefix}.grm.id {args.prefix}.grm.npz')
+    else:
+        np.savetxt(f'{args.out}/{args.prefix}.grm.id',samples.values,fmt='%s');np.savetxt(f'{args.out}/{args.prefix}.grm.txt',grm,fmt='%.6f')
+        logger.info(f'Saved in {args.out}:\n{args.prefix}.grm.id {args.prefix}.grm.txt')
 
-lt = time.localtime()
-endinfo = f'\nFinished, total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
-logger.info(endinfo)
+    lt = time.localtime()
+    endinfo = f'\nFinished, total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
+    logger.info(endinfo)
+    
+if __name__ == "__main__":
+    main()

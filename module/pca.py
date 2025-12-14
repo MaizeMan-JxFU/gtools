@@ -24,6 +24,7 @@ from gfreader import breader,vcfreader,npyreader
 from pyBLUP import QK,Eigendec
 
 def main(log:bool=True):
+    t_start = time.time()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
@@ -109,11 +110,7 @@ def main(log:bool=True):
             logger.info(f"Colors set: {args.color}")
         logger.info(f"Output prefix: {args.out}/{args.prefix}")
         logger.info("*"*60 + "\n")
-    return gfile,args,logger
 
-if __name__ == '__main__':
-    t_start = time.time()
-    gfile,args,logger = main()
     t_loading = time.time()
     if args.npy or args.vcf or args.bfile:
         if args.vcf:
@@ -196,3 +193,6 @@ if __name__ == '__main__':
     lt = time.localtime()
     endinfo = f'\nFinished, total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
     logger.info(endinfo)
+    
+if __name__ == '__main__':
+    main()

@@ -35,6 +35,7 @@ from _common.readanno import readanno
 from joblib import Parallel,delayed
 
 def main():
+    t_start = time.time()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
@@ -113,11 +114,7 @@ def main():
     logger.info(f"Output prefix: {args.out}/{args.prefix}")
     logger.info(f"Threads:       {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
     logger.info("*"*60 + "\n")
-    return args,logger
-
-if __name__ == "__main__":
-    t_start = time.time()
-    args,logger = main()
+    
     def GWASplot(file):
         args.prefix = os.path.basename(file).replace('.tsv','').replace('.txt','')
         chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
@@ -172,7 +169,10 @@ if __name__ == "__main__":
                 logger.info(f'Completed, costed {round(time.time()-t_anno,2)} secs\n')
             else:
                 logger.info(f'{args.anno} is an unkwown file\n')
-    Parallel(n_jobs=args.thread,backend='loky')(delayed(GWASplot)(i) for i in args.file)
+    Parallel(n_jobs=args.thread,backend='loky')(delayed(GWASplot)(file) for file in args.file)
     lt = time.localtime()
     endinfo = f'\nFinished, Total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
     logger.info(endinfo)
+    
+if __name__ == "__main__":
+    main()

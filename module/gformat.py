@@ -10,6 +10,7 @@ from _common.log import setup_logging
 import os
 
 def main(log:bool=True):
+    t_start = time.time()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
@@ -84,12 +85,6 @@ def main(log:bool=True):
         logger.info(f"Recode format: {args.recode}")
         logger.info(f"Output prefix: {args.out}/{args.prefix}")
         logger.info("*"*60 + "\n")
-    return gfile,args,logger
-
-
-if __name__ == "__main__":
-    t_start = time.time()
-    gfile,args,logger = main()
 
     assert args.recode in ['vcf','npy'], f'recode must be vcf or npy'
     t_loading = time.time()
@@ -136,3 +131,6 @@ if __name__ == "__main__":
     lt = time.localtime()
     endinfo = f'\nFinished, Total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
     logger.info(endinfo)
+    
+if __name__ == "__main__":
+    main()
