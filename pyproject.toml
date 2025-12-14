@@ -14,7 +14,6 @@ dependencies = [
     "psutil",
     "tqdm",
     "joblib>=1.5.2",
-    "memory_profiler",
     "bed-reader==1.0.6",
 ]
 
