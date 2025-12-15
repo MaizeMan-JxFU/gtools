@@ -16,8 +16,8 @@ for key in ['MPLBACKEND']:
     if key in os.environ:
         del os.environ[key]
 import matplotlib as mpl
-import logging
 mpl.use('Agg')
+import logging
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 logging.getLogger('fontTools.subset').setLevel(logging.ERROR)
@@ -30,9 +30,64 @@ import numpy as np
 import argparse
 import time
 import socket
-from _common.log import setup_logging
-from _common.readanno import readanno
+from ._common.log import setup_logging
+from ._common.readanno import readanno
 from joblib import Parallel,delayed
+
+def GWASplot(file,args,logger):
+    args.prefix = os.path.basename(file).replace('.tsv','').replace('.txt','')
+    chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
+    df = pd.read_csv(file,sep='\t',usecols=[chr_string,pos_string,pvalue_string])
+    threshold = args.threshold if args.threshold is not None else 0.05/df.shape[0]
+    if args.noplot:
+        t_plot = time.time()
+        logger.info('* Visualizing...')
+        plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
+        fig = plt.figure(figsize=(8,4),dpi=300)
+        ax =fig.add_subplot(111,)
+        if args.highlight:
+            df_hl = pd.read_csv(args.highlight,sep='\t',index_col=None,header=None,)
+            genenamemask = df_hl[3].isna()
+            df_hl.loc[genenamemask,3] = df_hl.loc[genenamemask,0].astype(str)+'_'+df_hl.loc[genenamemask,1].astype(str)
+            df_hl = df_hl.set_index([0,1])
+            df_hl_idx = df_hl.index[df_hl.index.isin(plotmodel.df.index)]
+            assert len(df_hl_idx)>0, 'Nothing to highlight, check bed file.'
+            ax.scatter(plotmodel.df.loc[df_hl_idx,'x'],-np.log10(plotmodel.df.loc[df_hl_idx,'y']),marker='D',color='red',zorder=10,s=32,edgecolors='black')
+            ax.hlines(y=-np.log10(threshold),xmin=-1e10,xmax=1e10,linestyle='dashed',color='grey')
+            for idx in df_hl_idx:
+                text = df_hl.loc[idx,3]
+                ax.text(plotmodel.df.loc[idx,'x'],-np.log10(plotmodel.df.loc[idx,'y']),s=text,ha='center',zorder=11)
+            plotmodel.manhattan(None,ax=ax,color_set=args.color,ignore=df_hl_idx)
+        else:
+            plotmodel.manhattan(-np.log10(threshold),ax=ax,color_set=args.color)
+        plt.tight_layout()
+        plt.savefig(f'{args.out}/{args.prefix}.manh.pdf',transparent=True)
+        plt.close(fig)
+        fig = plt.figure(figsize=(5,4),dpi=300)
+        ax2 =fig.add_subplot(111,)
+        plotmodel.qq(ax=ax2,color_set=args.color)
+        plt.tight_layout()
+        plt.savefig(f'{args.out}/{args.prefix}.qq.pdf',transparent=True)
+        plt.close(fig)
+        logger.info(f'Saved in {args.out}/{args.prefix}.manh.pdf and {args.out}/{args.prefix}.qq.pdf')
+        logger.info(f'Completed, costed {round(time.time()-t_plot,2)} secs\n')
+    if args.anno:
+        logger.info('* Annotating...')
+        if os.path.exists(args.anno):
+            t_anno = time.time()
+            df_filter = df.loc[df[pvalue_string]<=threshold,[chr_string,pos_string,pvalue_string]].set_index([chr_string,pos_string])
+            anno = readanno(args.anno,args.descItem) # After treating: anno 0-chr,1-start,2-end,3-geneID,4-description1,5-description2
+            desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1])&(anno[2]>=x[1])], df_filter.index))
+            df_filter['desc'] = list(map(lambda x:f'''{x.iloc[0,3]};{x.iloc[0,4]};{x.iloc[0,5]}''' if not x.empty else 'NA;NA;NA', desc))
+            if args.annobroaden:
+                desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1]+args.annobroaden*1_000)&(anno[2]>=x[1]-args.annobroaden*1_000)], df_filter.index))
+                df_filter['broaden'] = list(map(lambda x:f'''{'|'.join(x.iloc[:,3])};{'|'.join(x.iloc[:,4])};{'|'.join(x.iloc[:,5])}''' if not x.empty else 'NA;NA;NA', desc))
+            logger.info(df_filter)
+            df_filter.to_csv(f'{args.out}/{args.prefix}.{threshold}.anno.tsv',sep='\t')
+            logger.info(f'Saved in {args.out}/{args.prefix}.{threshold}.anno.tsv')
+            logger.info(f'Completed, costed {round(time.time()-t_anno,2)} secs\n')
+        else:
+            logger.info(f'{args.anno} is an unkwown file\n')
 
 def main():
     t_start = time.time()
@@ -115,61 +170,7 @@ def main():
     logger.info(f"Threads:       {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
     logger.info("*"*60 + "\n")
     
-    def GWASplot(file):
-        args.prefix = os.path.basename(file).replace('.tsv','').replace('.txt','')
-        chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
-        df = pd.read_csv(file,sep='\t',usecols=[chr_string,pos_string,pvalue_string])
-        threshold = args.threshold if args.threshold is not None else 0.05/df.shape[0]
-        if args.noplot:
-            t_plot = time.time()
-            logger.info('* Visualizing...')
-            plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
-            fig = plt.figure(figsize=(8,4),dpi=300)
-            ax =fig.add_subplot(111,)
-            if args.highlight:
-                df_hl = pd.read_csv(args.highlight,sep='\t',index_col=None,header=None,)
-                genenamemask = df_hl[3].isna()
-                df_hl.loc[genenamemask,3] = df_hl.loc[genenamemask,0].astype(str)+'_'+df_hl.loc[genenamemask,1].astype(str)
-                df_hl = df_hl.set_index([0,1])
-                df_hl_idx = df_hl.index[df_hl.index.isin(plotmodel.df.index)]
-                assert len(df_hl_idx)>0, 'Nothing to highlight, check bed file.'
-                ax.scatter(plotmodel.df.loc[df_hl_idx,'x'],-np.log10(plotmodel.df.loc[df_hl_idx,'y']),marker='D',color='red',zorder=10,s=32,edgecolors='black')
-                ax.hlines(y=-np.log10(threshold),xmin=-1e10,xmax=1e10,linestyle='dashed',color='grey')
-                for idx in df_hl_idx:
-                    text = df_hl.loc[idx,3]
-                    ax.text(plotmodel.df.loc[idx,'x'],-np.log10(plotmodel.df.loc[idx,'y']),s=text,ha='center',zorder=11)
-                plotmodel.manhattan(None,ax=ax,color_set=args.color,ignore=df_hl_idx)
-            else:
-                plotmodel.manhattan(-np.log10(threshold),ax=ax,color_set=args.color)
-            plt.tight_layout()
-            plt.savefig(f'{args.out}/{args.prefix}.manh.pdf',transparent=True)
-            plt.close(fig)
-            fig = plt.figure(figsize=(5,4),dpi=300)
-            ax2 =fig.add_subplot(111,)
-            plotmodel.qq(ax=ax2,color_set=args.color)
-            plt.tight_layout()
-            plt.savefig(f'{args.out}/{args.prefix}.qq.pdf',transparent=True)
-            plt.close(fig)
-            logger.info(f'Saved in {args.out}/{args.prefix}.manh.pdf and {args.out}/{args.prefix}.qq.pdf')
-            logger.info(f'Completed, costed {round(time.time()-t_plot,2)} secs\n')
-        if args.anno:
-            logger.info('* Annotating...')
-            if os.path.exists(args.anno):
-                t_anno = time.time()
-                df_filter = df.loc[df[pvalue_string]<=threshold,[chr_string,pos_string,pvalue_string]].set_index([chr_string,pos_string])
-                anno = readanno(args.anno,args.descItem) # After treating: anno 0-chr,1-start,2-end,3-geneID,4-description1,5-description2
-                desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1])&(anno[2]>=x[1])], df_filter.index))
-                df_filter['desc'] = list(map(lambda x:f'''{x.iloc[0,3]};{x.iloc[0,4]};{x.iloc[0,5]}''' if not x.empty else 'NA;NA;NA', desc))
-                if args.annobroaden:
-                    desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1]+args.annobroaden*1_000)&(anno[2]>=x[1]-args.annobroaden*1_000)], df_filter.index))
-                    df_filter['broaden'] = list(map(lambda x:f'''{'|'.join(x.iloc[:,3])};{'|'.join(x.iloc[:,4])};{'|'.join(x.iloc[:,5])}''' if not x.empty else 'NA;NA;NA', desc))
-                logger.info(df_filter)
-                df_filter.to_csv(f'{args.out}/{args.prefix}.{threshold}.anno.tsv',sep='\t')
-                logger.info(f'Saved in {args.out}/{args.prefix}.{threshold}.anno.tsv')
-                logger.info(f'Completed, costed {round(time.time()-t_anno,2)} secs\n')
-            else:
-                logger.info(f'{args.anno} is an unkwown file\n')
-    Parallel(n_jobs=args.thread,backend='loky')(delayed(GWASplot)(file) for file in args.file)
+    Parallel(n_jobs=args.thread,backend='loky')(delayed(GWASplot)(file,args,logger) for file in args.file)
     lt = time.localtime()
     endinfo = f'\nFinished, Total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
     logger.info(endinfo)

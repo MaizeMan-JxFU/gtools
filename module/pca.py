@@ -17,11 +17,11 @@ logging.getLogger('fontTools.subset').setLevel(logging.ERROR)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
-from _common.log import setup_logging
 from bioplotkit.sci_set import color_set
 from bioplotkit import PCSHOW
 from gfreader import breader,vcfreader,npyreader
 from pyBLUP import QK,Eigendec
+from ._common.log import setup_logging
 
 def main(log:bool=True):
     t_start = time.time()
@@ -180,6 +180,8 @@ def main(log:bool=True):
         logger.info(f'2D figure was saved in {args.out}/{args.prefix}.eigenvec.2D.pdf')
         plt.close()
     if args.plot3D:
+        logger.info('* 3D Visualizing...')
+        exp = 100*eigenval/np.sum(eigenval)
         df_pc = pd.DataFrame(eigenvec[:,:3],index=samples,columns=[f'''PC{i+1}({round(float(exp[i]),2)}%)''' for i in range(3)])
         if args.group:
             df_pc = pd.concat([df_pc,pd.read_csv(args.group,sep='\t',index_col=0,)],axis=1)
