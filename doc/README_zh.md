@@ -359,6 +359,15 @@ sh ./install.sh
 
 ```
 
+### 预编译版本下载
+
+为了方便使用，我们也提供了预编译版本，无需从源码安装。预编译版本位于 [Releases v1.0.0](https://github.com/MaizeMan-JxFU/JanusX/releases/tag/v1.0.0)，包含以下平台：
+
+- **Linux AMD64**: [JanusX-v1.0.0-linux-AMD64.tgz](https://github.com/MaizeMan-JxFU/JanusX/releases/download/v1.0.0/JanusX-v1.0.0-linux-AMD64.tgz)
+- **Windows AMD64**: [JanusX-v1.0.0-windows-AMD64.tgz](https://github.com/MaizeMan-JxFU/JanusX/releases/download/v1.0.0/JanusX-v1.0.0-windows-AMD64.tgz)
+
+下载并解压后，直接运行可执行文件即可使用。
+
 **注意**: Windows安装已不再支持。请使用Linux/macOS或Windows子系统Linux (WSL)。
 
 ### Modules

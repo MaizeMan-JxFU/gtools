@@ -18,7 +18,16 @@ sh ./install.sh
 
 The install script uses `uv` for dependency management and creates a virtual environment in `.venv/`.
 
-**Note**: Windows installation is no longer supported. Please use Linux/macOS or Windows Subsystem for Linux (WSL).
+### Pre-compiled Releases
+
+For convenience, we also provide pre-compiled binaries that don't require building from source. The releases are available at [Releases v1.0.0](https://github.com/MaizeMan-JxFU/JanusX/releases/tag/v1.0.0) for the following platforms:
+
+- **Linux AMD64**: [JanusX-v1.0.0-linux-AMD64.tgz](https://github.com/MaizeMan-JxFU/JanusX/releases/download/v1.0.0/JanusX-v1.0.0-linux-AMD64.tgz)
+- **Windows AMD64**: [JanusX-v1.0.0-windows-AMD64.tgz](https://github.com/MaizeMan-JxFU/JanusX/releases/download/v1.0.0/JanusX-v1.0.0-windows-AMD64.tgz)
+
+Simply download and extract the archive, then run the executable directly.
+
+**Note**: Windows installation is no longer supported. Please use Linux/macOS or Windows Subsystem for Linux (WSL). But there is a pre-build version for Windows.
 
 ### Running the CLI
 
