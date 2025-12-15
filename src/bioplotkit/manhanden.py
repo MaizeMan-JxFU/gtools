@@ -30,6 +30,9 @@ class GWASPLOT:
             self.minidx = df.index.to_list()
         self.t_start = time.time()
         df = df[[chr, pos, pvalue]].copy()
+        self.chruniq = df[chr].unique()
+        transdict = dict(zip(self.chruniq,range(len(self.chruniq))))
+        df[chr] = df[chr].map(transdict).astype(int)
         df = df.sort_values(by=[chr,pos])
         self.chrlist = df[chr].unique()
         self.interval = int(interval_rate*df[pos].max())
@@ -60,7 +63,7 @@ class GWASPLOT:
             df_annote = df[df['y']>=threshold]
             ax.scatter(df_annote[~df_annote.index.isin(ignore)]['x'], df_annote[~df_annote.index.isin(ignore)]['y'], alpha=1, s=16, color='red',rasterized=True)
             ax.hlines(y=threshold, xmin=0, xmax=max(df['x']),color='grey', linewidth=1, alpha=1, linestyles='--')
-        ax.set_xticks(self.ticks_loc, self.chrlist)
+        ax.set_xticks(self.ticks_loc, self.chruniq)
         ax.set_xlim([0-self.interval,max(df['x'])+self.interval])
         ax.set_ylim([0.5,max(df['y'])+0.1*max(df['y'])])
         ax.set_xlabel('Chromosome')
