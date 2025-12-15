@@ -3,4 +3,6 @@ python -m pip install --upgrade pip
 python -m pip install uv
 python -m uv venv --clear
 python -m uv sync
+cp ./doc/unix.sh jx
 chmod +x jx
+echo "Recommend: Add $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) to PATH"

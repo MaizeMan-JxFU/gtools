@@ -1,4 +1,4 @@
-#! .venv/bin/python
+#!/user/bin/env python
 # -*- coding: utf-8 -*-
 import sys
 import warnings
@@ -10,7 +10,7 @@ warnings.filterwarnings(
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.backends.backend_pdf # pdf support
-from module import gwas,gs,postGWAS,grm,pca,gformat
+import gwas,gs,postGWAS,grm,pca,gformat
 
 __logo__ = r'''
        _                      __   __
