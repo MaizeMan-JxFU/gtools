@@ -27,4 +27,5 @@ def fastGLM(y:np.ndarray,X:np.ndarray,M:np.ndarray,chunksize:int=50_000,threads:
         raise ValueError("M must be 2D array with shape (m, n)")
     if M.shape[1] != y.shape[0]:
         raise ValueError(f"M must be shape (m, n). Got M.shape={M.shape}, but n=len(y)={y.shape[0]}")
-    return glmi8(y,X,ixx,M,chunksize,threads)
+    result:np.ndarray = glmi8(y,X,ixx,M,chunksize,threads)
+    return result
