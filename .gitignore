@@ -26,3 +26,7 @@ uv.lock
 .python-version
 
 .DS_store
+
+# rust
+target
+*.lock
