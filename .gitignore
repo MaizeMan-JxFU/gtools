@@ -30,3 +30,6 @@ uv.lock
 # rust
 target
 *.lock
+
+# external binaries
+ext/bin/*

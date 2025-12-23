@@ -2,12 +2,10 @@ from __future__ import annotations
 import os
 import threading
 from typing import List, Tuple, Optional
-
 import requests
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from retry import retry
-
 import zipfile
 
 headers = {
