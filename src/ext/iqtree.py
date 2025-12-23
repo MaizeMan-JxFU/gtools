@@ -3,7 +3,6 @@ import platform
 from .downloader import download_joblib
 import gzip
 import shutil
-import sys
 
 def main():
     scriptpath = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +23,7 @@ def main():
         os.remove(f'{extbin}/iqtree3.gz')
         print('IQ-TREE downloaded and compiled successfully.')
     ## Main
-    os.system(f'{extbin}/iqtree3 {" ".join(sys.argv[1:])}')
+    return f'{extbin}/iqtree3'
 
 if __name__ == '__main__':
     main()

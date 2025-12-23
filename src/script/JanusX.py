@@ -10,8 +10,7 @@ warnings.filterwarnings(
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.backends.backend_pdf # pdf support
-from . import gwas,gs,postGWAS,grm,pca,gformat
-from ext import iqtree  # Ensure iqtree dependencies are checked at startup
+from . import gwas,gs,postGWAS,grm,pca,gformat,phylogeny
 
 __logo__ = r'''
        _                      __   __
@@ -24,8 +23,8 @@ __logo__ = r'''
 __version__ = 'JanusX v1.0.0'
 
 def main():
-    module = dict(zip(['gwas','gs','postGWAS','grm','pca','gformat'],[gwas,gs,postGWAS,grm,pca,gformat]))
-    extmodule = {'iqtree':iqtree}
+    module = dict(zip(['gwas','gs','postGWAS','grm','pca','gformat','phylogeny'],[gwas,gs,postGWAS,grm,pca,gformat,phylogeny]))
+    extmodule = {}
     print(__logo__)
     if len(sys.argv)>1:
         if sys.argv[1] == '-h' or sys.argv[1] == '--help':
