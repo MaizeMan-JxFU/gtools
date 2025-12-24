@@ -509,11 +509,45 @@ impl VcfChunkReader {
     }
 }
 
+/// Count variant records (non-header lines) in a VCF/VCF.GZ file.
+///
+/// Header lines start with '#', variant records do not.
+/// This makes one linear pass over the file and is usually cheap
+/// compared to downstream GWAS computations.
+#[pyfunction]
+fn count_vcf_snps(path: String) -> PyResult<usize> {
+    use std::io::Read; // 其实 BufRead 已经在上面引入，这行可要可不要
+
+    let p = Path::new(&path);
+    let mut reader = open_text_maybe_gz(p)
+        .map_err(|msg| PyErr::new::<PyRuntimeError, _>(msg))?;
+
+    let mut n: usize = 0;
+    let mut line = String::new();
+
+    loop {
+        line.clear();
+        let bytes_read = reader
+            .read_line(&mut line)
+            .map_err(|e| PyErr::new::<PyIOError, _>(e.to_string()))?;
+        if bytes_read == 0 {
+            break;
+        }
+        if line.starts_with('#') || line.trim().is_empty() {
+            continue;
+        }
+        n += 1;
+    }
+
+    Ok(n)
+}
+
 /// PyO3 模块导出
 #[pymodule]
 fn gfreader_rs(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<SiteInfo>()?;
     m.add_class::<BedChunkReader>()?;
     m.add_class::<VcfChunkReader>()?;
+    m.add_function(wrap_pyfunction!(count_vcf_snps, m)?)?;
     Ok(())
 }

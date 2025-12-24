@@ -1,7 +1,7 @@
 import numpy as np
 
 try:
-    from gfreader_rs import BedChunkReader, VcfChunkReader
+    from gfreader_rs import BedChunkReader, VcfChunkReader, count_vcf_snps
 except ImportError as e:
     raise RuntimeError(
         f"{e}\n"
@@ -96,4 +96,4 @@ def inspect_genotype_file(path_or_prefix: str):
         return reader.sample_ids, reader.n_snps
     # VCF
     reader = VcfChunkReader(path_or_prefix, 0.0, 1.0)
-    return reader.sample_ids, None
+    return reader.sample_ids, count_vcf_snps(path_or_prefix)
