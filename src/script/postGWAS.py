@@ -1,24 +1,41 @@
 # -*- coding: utf-8 -*-
-'''
-Examples:
-  # Basic usage with gwasplot
+"""
+JanusX – Post-GWAS Visualization and Annotation
+
+Examples
+--------
+  # Basic usage with default column names (#CHROM, POS, p)
   -f result.assoc.txt
-  # Usage of different column names with gwasplot
+
+  # Use different column names
   -f result.assoc.txt -chr "chr" -pos "pos" -pvalue "P_wald"
-  # Usage of gwasplot and point out output path
-  -f result.assoc.txt -chr "chr" -pos "pos" -pvalue "P_wald" --out test # it will saved in test/result.assoc.qq.pdf and test/result.assoc.manh.pdf
-        
-Citation:
+
+  # Specify output path and format
+  -f result.assoc.txt -chr "chr" -pos "pos" -pvalue "P_wald" \
+    --out test --format pdf
+  # Results will be saved as:
+  #   test/result.assoc.manh.pdf
+  #   test/result.assoc.qq.pdf
+
+Citation
+--------
   https://github.com/MaizeMan-JxFU/JanusX/
-'''
+"""
+
 import os
 from ._common.log import setup_logging
-for key in ['MPLBACKEND']:
+
+# Make sure matplotlib runs in a non-interactive backend
+for key in ["MPLBACKEND"]:
     if key in os.environ:
         del os.environ[key]
+
 import matplotlib as mpl
-mpl.use('Agg')
+mpl.use("Agg")
+
 from bioplotkit import GWASPLOT
+from bioplotkit.sci_set import color_set
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -26,164 +43,368 @@ import argparse
 import time
 import socket
 from ._common.readanno import readanno
-from joblib import Parallel,delayed
+from joblib import Parallel, delayed
 import warnings
-from bioplotkit.sci_set import color_set
 
-def GWASplot(file,args,logger):
-    mpl.rcParams['pdf.fonttype'] = 42
-    mpl.rcParams['ps.fonttype'] = 42
-    plt.rcParams['svg.fonttype'] = 'none'
-    plt.rcParams['axes.unicode_minus'] = False
+
+def GWASplot(file: str, args, logger) -> None:
+    """
+    Plot Manhattan/QQ and optionally annotate significant hits
+    for a single GWAS result file.
+    """
+    mpl.rcParams["pdf.fonttype"] = 42
+    mpl.rcParams["ps.fonttype"] = 42
+    plt.rcParams["svg.fonttype"] = "none"
+    plt.rcParams["axes.unicode_minus"] = False
+
+    # Silence pandas chained-assignment warnings in this script
     warnings.filterwarnings(
         "ignore",
         category=FutureWarning,
-        message=".*ChainedAssignmentError.*"
+        message=".*ChainedAssignmentError.*",
     )
-    args.prefix = os.path.basename(file).replace('.tsv','').replace('.txt','')
-    chr_string,pos_string,pvalue_string = args.chr,args.pos,args.pvalue
-    df = pd.read_csv(file,sep='\t',usecols=[chr_string,pos_string,pvalue_string])
-    threshold = args.threshold if args.threshold is not None else 0.05/df.shape[0]
+
+    args.prefix = (
+        os.path.basename(file)
+        .replace(".tsv", "")
+        .replace(".txt", "")
+    )
+
+    chr_col, pos_col, p_col = args.chr, args.pos, args.pvalue
+
+    df = pd.read_csv(file, sep="\t", usecols=[chr_col, pos_col, p_col])
+
+    # Bonferroni-style default threshold if not provided
+    threshold = args.threshold if args.threshold is not None else 0.05 / df.shape[0]
+
+    # ------------------------------------------------------------------
+    # 1. Visualization: Manhattan & QQ
+    # ------------------------------------------------------------------
     if args.noplot:
         t_plot = time.time()
-        logger.info('* Visualizing...')
-        plotmodel = GWASPLOT(df,chr_string,pos_string,pvalue_string,0.1)
-        fig = plt.figure(figsize=(8,4),dpi=300)
-        ax =fig.add_subplot(111,)
-        rasterized = False if args.format == 'pdf' else True
+        logger.info("* Visualizing GWAS results...")
+
+        plotmodel = GWASPLOT(df, chr_col, pos_col, p_col, 0.1)
+
+        # ----------------- Manhattan plot -----------------
+        fig = plt.figure(figsize=(8, 4), dpi=300)
+        ax = fig.add_subplot(111)
+
+        # Rasterization for non-PDF formats to keep file size reasonable
+        rasterized = False if args.format == "pdf" else True
+
         if args.highlight:
-            df_hl = pd.read_csv(args.highlight,sep='\t',index_col=None,header=None,)
-            genenamemask = df_hl[3].isna()
-            df_hl.loc[genenamemask,3] = df_hl.loc[genenamemask,0].astype(str)+'_'+df_hl.loc[genenamemask,1].astype(str)
-            df_hl = df_hl.set_index([0,1])
+            # Highlight specific SNPs (bed-like file: chr, start, end, gene, desc)
+            df_hl = pd.read_csv(args.highlight, sep="\t", header=None)
+            # If gene name is missing, fall back to chr_pos
+            gene_mask = df_hl[3].isna()
+            df_hl.loc[gene_mask, 3] = (
+                df_hl.loc[gene_mask, 0].astype(str)
+                + "_"
+                + df_hl.loc[gene_mask, 1].astype(str)
+            )
+            df_hl = df_hl.set_index([0, 1])
+
+            # Intersect highlight positions with SNPs in the plot model
             df_hl_idx = df_hl.index[df_hl.index.isin(plotmodel.df.index)]
-            assert len(df_hl_idx)>0, 'Nothing to highlight, check bed file.'
-            ax.scatter(plotmodel.df.loc[df_hl_idx,'x'],-np.log10(plotmodel.df.loc[df_hl_idx,'y']),marker='D',color='red',zorder=10,s=32,edgecolors='black')
-            ax.hlines(y=-np.log10(threshold),xmin=-1e10,xmax=1e10,linestyle='dashed',color='grey')
+            assert len(df_hl_idx) > 0, "Nothing to highlight. Check the BED file."
+
+            # Highlight points
+            ax.scatter(
+                plotmodel.df.loc[df_hl_idx, "x"],
+                -np.log10(plotmodel.df.loc[df_hl_idx, "y"]),
+                marker="D",
+                color="red",
+                zorder=10,
+                s=32,
+                edgecolors="black",
+            )
+            ax.hlines(
+                y=-np.log10(threshold),
+                xmin=-1e10,
+                xmax=1e10,
+                linestyle="dashed",
+                color="grey",
+            )
+
+            # Add gene labels
             for idx in df_hl_idx:
-                text = df_hl.loc[idx,3]
-                ax.text(plotmodel.df.loc[idx,'x'],-np.log10(plotmodel.df.loc[idx,'y']),s=text,ha='center',zorder=11)
-            plotmodel.manhattan(None,ax=ax,color_set=args.color,ignore=df_hl_idx,rasterized=rasterized)
+                text = df_hl.loc[idx, 3]
+                ax.text(
+                    plotmodel.df.loc[idx, "x"],
+                    -np.log10(plotmodel.df.loc[idx, "y"]),
+                    s=text,
+                    ha="center",
+                    zorder=11,
+                )
+
+            # Plot background Manhattan points, excluding the highlighted ones
+            plotmodel.manhattan(
+                None,
+                ax=ax,
+                color_set=args.color,
+                ignore=df_hl_idx,
+                rasterized=rasterized,
+            )
         else:
-            plotmodel.manhattan(-np.log10(threshold),ax=ax,color_set=args.color,rasterized=rasterized)
+            # Standard Manhattan with threshold line
+            plotmodel.manhattan(
+                -np.log10(threshold),
+                ax=ax,
+                color_set=args.color,
+                rasterized=rasterized,
+            )
+
         plt.tight_layout()
-        plt.savefig(f'{args.out}/{args.prefix}.manh.{args.format}',transparent=True)
+        manh_path = f"{args.out}/{args.prefix}.manh.{args.format}"
+        plt.savefig(manh_path, transparent=True)
         plt.close(fig)
-        fig = plt.figure(figsize=(5,4),dpi=300)
-        ax2 =fig.add_subplot(111)
-        plotmodel.qq(ax=ax2,color_set=args.color)
+
+        # ----------------- QQ plot -----------------
+        fig = plt.figure(figsize=(5, 4), dpi=300)
+        ax2 = fig.add_subplot(111)
+        plotmodel.qq(ax=ax2, color_set=args.color)
         plt.tight_layout()
-        plt.savefig(f'{args.out}/{args.prefix}.qq.{args.format}',transparent=True)
+        qq_path = f"{args.out}/{args.prefix}.qq.{args.format}"
+        plt.savefig(qq_path, transparent=True)
         plt.close(fig)
-        logger.info(f'Saved in {args.out}/{args.prefix}.manh.{args.format} and {args.out}/{args.prefix}.qq.{args.format}')
-        logger.info(f'Completed, costed {round(time.time()-t_plot,2)} secs\n')
+
+        logger.info(
+            f"Manhattan and QQ plots saved to:\n"
+            f"  {manh_path}\n"
+            f"  {qq_path}"
+        )
+        logger.info(f"Visualization completed in {round(time.time() - t_plot, 2)} seconds.\n")
+
+    # ------------------------------------------------------------------
+    # 2. Annotation of significant loci
+    # ------------------------------------------------------------------
     if args.anno:
-        logger.info('* Annotating...')
+        logger.info("* Annotating significant SNPs...")
         if os.path.exists(args.anno):
             t_anno = time.time()
-            df_filter = df.loc[df[pvalue_string]<=threshold,[chr_string,pos_string,pvalue_string]].set_index([chr_string,pos_string])
-            anno = readanno(args.anno,args.descItem) # After treating: anno 0-chr,1-start,2-end,3-geneID,4-description1,5-description2
-            desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1])&(anno[2]>=x[1])], df_filter.index))
-            df_filter['desc'] = list(map(lambda x:f'''{x.iloc[0,3]};{x.iloc[0,4]};{x.iloc[0,5]}''' if not x.empty else 'NA;NA;NA', desc))
+
+            # Keep SNPs passing threshold
+            df_filter = df.loc[
+                df[p_col] <= threshold,
+                [chr_col, pos_col, p_col],
+            ].set_index([chr_col, pos_col])
+
+            # Read annotation (GFF/bed) into unified annotation table
+            # After readanno:
+            #   anno[0] = chr
+            #   anno[1] = start
+            #   anno[2] = end
+            #   anno[3] = gene ID
+            #   anno[4], anno[5] = description fields
+            anno = readanno(args.anno, args.descItem)
+
+            # Exact overlap annotation
+            desc_exact = [
+                anno.loc[
+                    (anno[0] == idx[0])
+                    & (anno[1] <= idx[1])
+                    & (anno[2] >= idx[1])
+                ]
+                for idx in df_filter.index
+            ]
+            df_filter["desc"] = [
+                (
+                    f"{x.iloc[0, 3]};{x.iloc[0, 4]};{x.iloc[0, 5]}"
+                    if not x.empty
+                    else "NA;NA;NA"
+                )
+                for x in desc_exact
+            ]
+
+            # Optional broadened window around SNP (± annobroaden kb)
             if args.annobroaden:
-                desc = list(map(lambda x:anno.loc[(anno[0]==x[0])&(anno[1]<=x[1]+args.annobroaden*1_000)&(anno[2]>=x[1]-args.annobroaden*1_000)], df_filter.index))
-                df_filter['broaden'] = list(map(lambda x:f'''{'|'.join(x.iloc[:,3])};{'|'.join(x.iloc[:,4])};{'|'.join(x.iloc[:,5])}''' if not x.empty else 'NA;NA;NA', desc))
+                kb = args.annobroaden * 1_000
+                desc_broad = [
+                    anno.loc[
+                        (anno[0] == idx[0])
+                        & (anno[1] <= idx[1] + kb)
+                        & (anno[2] >= idx[1] - kb)
+                    ]
+                    for idx in df_filter.index
+                ]
+                df_filter["broaden"] = [
+                    (
+                        f"{'|'.join(x.iloc[:, 3])};"
+                        f"{'|'.join(x.iloc[:, 4])};"
+                        f"{'|'.join(x.iloc[:, 5])}"
+                        if not x.empty
+                        else "NA;NA;NA"
+                    )
+                    for x in desc_broad
+                ]
+
             logger.info(df_filter)
-            df_filter.to_csv(f'{args.out}/{args.prefix}.{threshold}.anno.tsv',sep='\t')
-            logger.info(f'Saved in {args.out}/{args.prefix}.{threshold}.anno.tsv')
-            logger.info(f'Completed, costed {round(time.time()-t_anno,2)} secs\n')
+
+            anno_path = f"{args.out}/{args.prefix}.{threshold}.anno.tsv"
+            df_filter.to_csv(anno_path, sep="\t")
+            logger.info(f"Annotation table saved to {anno_path}")
+            logger.info(f"Annotation completed in {round(time.time() - t_anno, 2)} seconds.\n")
         else:
-            logger.info(f'{args.anno} is an unkwown file\n')
+            logger.info(f"Annotation file not found: {args.anno}\n")
+
 
 def main():
     t_start = time.time()
+
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+
+    # ------------------------------------------------------------------
     # Required arguments
-    required_group = parser.add_argument_group('Required Arguments')
-    required_group.add_argument('-f','--file',nargs='+',type=str,required=True,
-                               help='File of gwas results')
+    # ------------------------------------------------------------------
+    required_group = parser.add_argument_group("Required Arguments")
+    required_group.add_argument(
+        "-f", "--file", nargs="+", type=str, required=True,
+        help="One or more GWAS result files (tab-delimited)",
+    )
+
+    # ------------------------------------------------------------------
     # Optional arguments
-    optional_group = parser.add_argument_group('Optional Arguments')
-    optional_group.add_argument('-chr', '--chr', type=str, default='#CHROM',
-                               help='Column name of chr'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-pos','--pos', type=str, default='POS',
-                               help='Column name of position'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-pvalue','--pvalue', type=str, default='p',
-                               help='Column name of pvalue'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-threshold','--threshold', type=float, default=None,
-                               help='treshold of pvalue'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-noplot','--noplot', action='store_false', default=True,
-                               help='disabling plot manhanden figure (default: %(default)s)')
-    optional_group.add_argument('-color','--color', type=int, default=0,
-                               help='Color style for manhanden and qq figure, 0-6 (default: %(default)s)')
-    optional_group.add_argument('-hl','--highlight', type=str, default=None,
-                               help='Hightlight SNP with gene name in .bed file, eg. 1\t100021\t100021\tgenename\tfunction (default: %(default)s)')
-    optional_group.add_argument('-format','--format', type=str, default='png',
-                               help='Figure format, eg. pdf, png, svg, tif (default: %(default)s)')
-    optional_group.add_argument('-a','--anno', type=str, default=None,
-                               help='annotation option, .gff file or .bed file'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-ab','--annobroaden', type=float, default=None,
-                               help='broaden range of chromosome (Kb)'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-descItem','--descItem', type=str, default='description',
-                               help='description items in gff file (dev)'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-o', '--out', type=str, default=None,
-                               help='Output folder path'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-prefix','--prefix', type=str,
-                               default=None,
-                               help='prefix of output file'
-                                   '(default: %(default)s)')
-    optional_group.add_argument('-t','--thread', type=int, default=-1,
-                               help='Number of CPU threads to use (-1 for all available cores, default: %(default)s)')
+    # ------------------------------------------------------------------
+    optional_group = parser.add_argument_group("Optional Arguments")
+    optional_group.add_argument(
+        "-chr", "--chr", type=str, default="#CHROM",
+        help="Column name for chromosome (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-pos", "--pos", type=str, default="POS",
+        help="Column name for base position (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-pvalue", "--pvalue", type=str, default="p",
+        help="Column name for p-value (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-threshold", "--threshold", type=float, default=None,
+        help="P-value threshold; if not set, use 0.05 / nSNP (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-noplot", "--noplot", action="store_false", default=True,
+        help="Disable plotting Manhattan/QQ figures (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-color", "--color", type=int, default=0,
+        help="Color style index for Manhattan and QQ (0–6, default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-hl", "--highlight", type=str, default=None,
+        help=(
+            "BED-like file of SNPs to highlight, e.g.:\n"
+            "  chr\\tpos\\tpos\\tgene\\tfunction"
+        ),
+    )
+    optional_group.add_argument(
+        "-format", "--format", type=str, default="png",
+        help="Output figure format: pdf, png, svg, tif (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-a", "--anno", type=str, default=None,
+        help="Annotation file (.gff or .bed) for SNP annotation (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-ab", "--annobroaden", type=float, default=None,
+        help="Broaden annotation window around SNP (Kb) (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-descItem", "--descItem", type=str, default="description",
+        help="Attribute key used as description in GFF file (default: %(default)s)",
+    )
+    optional_group.add_argument(
+        "-o", "--out", type=str, default=None,
+        help="Output directory for plots and annotation (default: same as first file)",
+    )
+    optional_group.add_argument(
+        "-prefix", "--prefix", type=str, default=None,
+        help="Prefix of log file (default: JanusX)",
+    )
+    optional_group.add_argument(
+        "-t", "--thread", type=int, default=-1,
+        help="Number of CPU threads (-1 uses all available cores, default: %(default)s)",
+    )
+
     args = parser.parse_args()
-    assert args.color <= 6, 'colorset error: try 0-6'
-    assert args.format in ['pdf', 'png', 'svg', 'tif'], f"Figure format error, {args.format} is not 'pdf', 'png', 'svg', 'tif'"
+
+    # ------------------------------------------------------------------
+    # Basic checks and configuration
+    # ------------------------------------------------------------------
+    assert args.color <= 6, "Color set index out of range; please use 0–6."
+    assert args.format in ["pdf", "png", "svg", "tif"], (
+        f"Unsupported figure format: {args.format} "
+        "(choose from: pdf, png, svg, tif)"
+    )
+
     args.color = color_set[args.color]
     args.out = os.path.dirname(args.file[0]) if args.out is None else args.out
-    args.prefix = 'JanusX' if args.prefix is None else args.prefix
-    # create log file
-    # Create output directory if it doesn't exist
-    if args.out != '':
-        os.makedirs(args.out, mode=0o755,exist_ok=True)
+    args.prefix = "JanusX" if args.prefix is None else args.prefix
+
+    # Create output directory if needed
+    if args.out != "":
+        os.makedirs(args.out, mode=0o755, exist_ok=True)
     else:
-        args.out = '.'
-    logger = setup_logging(f'''{args.out}/{args.prefix}.postGWAS.log'''.replace('//','/'))
-    # Print configuration summary
-    logger.info('Script of GWAS post analysis')
-    logger.info(f'Host: {socket.gethostname()}\n')
-    logger.info("*"*60)
-    logger.info(f"File:          {args.file}")
-    logger.info(f"Chr tag:       {args.chr}")
-    logger.info(f"Pos tag:       {args.pos}")
-    logger.info(f"Pvalue tag:    {args.pvalue}")
-    logger.info(f"Threshold:     {args.threshold if args.threshold else '0.05/nSNP'}")
+        args.out = "."
+
+    log_path = f"{args.out}/{args.prefix}.postGWAS.log".replace("//", "/")
+    logger = setup_logging(log_path)
+
+    # ------------------------------------------------------------------
+    # Configuration summary
+    # ------------------------------------------------------------------
+    logger.info("JanusX – Post-GWAS visualization and annotation")
+    logger.info(f"Host: {socket.gethostname()}\n")
+
+    logger.info("*" * 60)
+    logger.info("POST-GWAS CONFIGURATION")
+    logger.info("*" * 60)
+    logger.info(f"Input files:   {args.file}")
+    logger.info(f"Chr column:    {args.chr}")
+    logger.info(f"Pos column:    {args.pos}")
+    logger.info(f"P-value column:{args.pvalue}")
+    logger.info(
+        f"Threshold:     {args.threshold if args.threshold is not None else '0.05 / nSNP'}"
+    )
     if args.noplot:
-        logger.info("GWAS Visulazation:")
-        logger.info(f"Color:         {args.color}")
-        logger.info(f'Highlight bed: {args.highlight}')
-        logger.info(f'Figure format: {args.format}')
+        logger.info("Visualization:")
+        logger.info(f"  Color set:   {args.color}")
+        logger.info(f"  Highlight:   {args.highlight}")
+        logger.info(f"  Format:      {args.format}")
     if args.anno:
-        logger.info("GWAS Annotation:")
-        logger.info(f"Anno file:     {args.anno}")
-        logger.info(f"Annobroad(kb): {args.annobroaden}")
+        logger.info("Annotation:")
+        logger.info(f"  Anno file:   {args.anno}")
+        logger.info(f"  Window (kb): {args.annobroaden}")
     logger.info(f"Output prefix: {args.out}/{args.prefix}")
-    logger.info(f"Threads:       {args.thread} ({'All cores' if args.thread == -1 else 'User specified'})")
-    logger.info("*"*60 + "\n")
-    
-    Parallel(n_jobs=args.thread,backend='loky')(delayed(GWASplot)(file,args,logger) for file in args.file)
+    logger.info(
+        f"Threads:       {args.thread} "
+        f"({'All cores' if args.thread == -1 else 'User-specified'})"
+    )
+    logger.info("*" * 60 + "\n")
+
+    # ------------------------------------------------------------------
+    # Parallel processing of all input files
+    # ------------------------------------------------------------------
+    Parallel(n_jobs=args.thread, backend="loky")(
+        delayed(GWASplot)(file, args, logger) for file in args.file
+    )
+
+    # ------------------------------------------------------------------
+    # Final logging
+    # ------------------------------------------------------------------
     lt = time.localtime()
-    endinfo = f'\nFinished, Total time: {round(time.time()-t_start,2)} secs\n{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} {lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}'
+    endinfo = (
+        f"\nFinished post-GWAS analysis. Total wall time: "
+        f"{round(time.time() - t_start, 2)} seconds\n"
+        f"{lt.tm_year}-{lt.tm_mon}-{lt.tm_mday} "
+        f"{lt.tm_hour}:{lt.tm_min}:{lt.tm_sec}"
+    )
     logger.info(endinfo)
-    
+
+
 if __name__ == "__main__":
     main()
