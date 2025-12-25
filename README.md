@@ -4,8 +4,8 @@
 
 ## Project Overview
 
-JanusX is a high-performance, ALL-in-ONE suite for quantitative genetics that unifies genome-wide association studies (GWAS) and genomic selection (GS). It incorporates well-established GWAS methods (MLM, GLM and FarmCPU) and a flexible GS toolkit including GBLUP and various machine learning models.
-It also combines routine genomic analyses, from data processing to publication-ready visualisation。
+JanusX is a high-performance, ALL-in-ONE suite for quantitative genetics that unifies genome-wide association studies (GWAS) and genomic selection (GS). It incorporates well-established GWAS methods (MLM, GLM and FarmCPU) and a flexible GS toolkit including GBLUP and various machine learning models.It also combines routine genomic analyses, from data processing to publication-ready visualisation.
+
 It provides significant performance improvements over tools like GEMMA, GCTA, and rMVP, especially in multi-threaded computation.
 
 ## Development Setup
