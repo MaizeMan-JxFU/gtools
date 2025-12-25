@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 from .gfreader_rs import BedChunkReader, VcfChunkReader, count_vcf_snps, PlinkStreamWriter, VcfStreamWriter
 
 def load_genotype_chunks(
@@ -189,6 +190,8 @@ def save_genotype_streaming(
     *,
     fmt: str = "auto",
     flush_every_chunks: int = 20,
+    total_snps: int | None = None,
+    desc: str = "Writing genotypes",
 ):
     """
     Unified streaming writer for genotype data.
@@ -240,20 +243,31 @@ def save_genotype_streaming(
 
     # pick writer
     if fmt == "plink":
-        # Rust: PlinkStreamWriter(prefix, sample_ids, phenotype=None)
         w = PlinkStreamWriter(str(out), sample_ids, None)
     else:
-        # Rust: VcfStreamWriter(path, sample_ids)
         w = VcfStreamWriter(str(out), sample_ids)
 
+    pbar = tqdm(
+        total=total_snps,
+        unit="SNP",
+        desc=desc,
+        disable=(total_snps is None),
+    )
+
+    written = 0
     k = 0
     try:
         for geno_chunk, sites in chunks:
-            gi8 = _to_i8_snp_major(geno_chunk)  # your existing helper
+            gi8 = _to_i8_snp_major(geno_chunk)
             w.write_chunk(gi8, list(sites))
+
+            n = len(sites)
+            written += n
+            pbar.update(n)
+
             k += 1
             if flush_every_chunks > 0 and (k % flush_every_chunks == 0):
                 w.flush()
     finally:
-        # make sure file handles are closed even if iteration errors
         w.close()
+        pbar.close()

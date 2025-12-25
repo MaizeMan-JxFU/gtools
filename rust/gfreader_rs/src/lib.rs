@@ -957,6 +957,14 @@ impl VcfStreamWriter {
     }
 }
 
+#[pymethods]
+impl SiteInfo {
+    #[new]
+    fn new(chrom: String, pos: i32, ref_allele: String, alt_allele: String) -> Self {
+        SiteInfo { chrom, pos, ref_allele, alt_allele }
+    }
+}
+
 // ============================================================
 // PyO3 module exports
 // ============================================================

@@ -3,6 +3,7 @@ name = "gfreader_rs"
 version = "0.1.0"
 description = "Fast chunk-wise genotype reader (PLINK BED / VCF) powered by Rust + PyO3"
 requires-python = ">=3.9"
+dependencies = ["tqdm"]
 
 [build-system]
 requires = ["maturin>=1.7,<2"]
