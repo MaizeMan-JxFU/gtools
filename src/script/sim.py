@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 from gfreader_rs import save_genotype_streaming, SiteInfo
@@ -26,11 +27,11 @@ def main():
         if sys.argv[1] == '-h' or sys.argv[1] == '--help':
             print('Usage: jx sim [nsnp(k)] [nidv] [outprefix]')
         elif len(sys.argv) == 4:
-            nsnp, nidv = int(1e3*sys.argv[1]),int(sys.argv[2])
+            nsnp, nidv = int(1e3*int(sys.argv[1])),int(sys.argv[2])
             outprefix = sys.argv[3]
-
+            os.makedirs(os.path.dirname(outprefix),exist_ok=True,mode=0o777)
             chunks = simulate_chunks(nsnp, nidv)
-            samples = np.arange(1,1+nidv).astype(str).tolist()
+            samples = np.arange(1,1+nidv).astype(str)
             y = 100+1e-3*np.zeros(shape=(nidv,1),dtype='float32')
             for g,_ in chunks:
                 beta = 0.1*np.random.randn(g.shape[0],1)
@@ -39,7 +40,9 @@ def main():
                     y += (np.abs(np.random.randn(g.shape[0],1)).T@g).T
             chunks = simulate_chunks(nsnp, nidv)
             print(f'Generating with {nsnp:.1e} SNPs and {nidv} individuals...')
-            save_genotype_streaming('/Volumes/HP X306W/geno.sim',samples,chunks,total_snps=nsnp)
+            save_genotype_streaming(outprefix,samples.tolist(),chunks,total_snps=nsnp)
+            y = np.concatenate([samples.reshape(-1,1),samples.reshape(-1,1),y],axis=1,dtype=object)
+            np.savetxt(f'{outprefix}.pheno',y,delimiter='\t',fmt=['%s', '%s', '%.3f'])
         else:
             print('Usage: jx sim [nsnp(k)] [nidv] [outprefix]')
     else:
