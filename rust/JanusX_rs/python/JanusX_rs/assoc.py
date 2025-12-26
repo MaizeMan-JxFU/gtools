@@ -31,6 +31,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 from scipy.optimize import minimize_scalar
+from scipy.linalg import eigh
 import warnings
 
 warnings.filterwarnings(
@@ -292,11 +293,12 @@ class LMM:
         )
 
         # Eigen decomposition of kinship (stabilized)
-        self.S, self.Dh = np.linalg.eigh(kinship + 1e-6 * np.eye(y.shape[0]))
-        self.Dh = self.Dh.T
+        kinship.flat[::kinship.shape[0]+1] += 1e-6
+        self.S, self.Dh = eigh(kinship, overwrite_a=True, check_finite=False)
 
         # Drop kinship to save memory
         del kinship
+        self.Dh = self.Dh.T.astype('float32')
 
         # Pre-rotate covariates and phenotype once
         self.Xcov = self.Dh @ X
