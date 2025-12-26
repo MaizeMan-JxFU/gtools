@@ -240,7 +240,7 @@ def load_or_build_grm_with_cache(
         km_path = f"{prefix}.k.{mgrm}.txt"
         if os.path.exists(km_path):
             logger.info(f"Loading cached GRM from {km_path}...")
-            grm = np.genfromtxt(km_path)
+            grm = np.genfromtxt(km_path,dtype='float32')
             grm = grm.reshape(n_samples, n_samples)
             eff_m = n_snps  # approximate; exact effective M not critical here
         else:
@@ -300,7 +300,7 @@ def load_or_build_q_with_cache(
         q_path = f"{prefix}.q.{pcdim}.txt"
         if os.path.exists(q_path):
             logger.info(f"Loading cached Q matrix from {q_path}...")
-            qmatrix = np.genfromtxt(q_path)
+            qmatrix = np.genfromtxt(q_path, dtype="float32")
         else:
             qmatrix = build_pcs_from_grm(grm, dim, logger)
             np.savetxt(q_path, qmatrix, fmt="%.6f")
@@ -338,7 +338,7 @@ def _load_covariate_for_streaming(
         return None
 
     logger.info(f"Loading covariate matrix for streaming models from {cov_path}...")
-    cov_all = np.genfromtxt(cov_path, dtype=float)
+    cov_all = np.genfromtxt(cov_path, dtype="float32")
     if cov_all.ndim == 1:
         cov_all = cov_all.reshape(-1, 1)
     assert cov_all.shape[0] == n_samples, (
@@ -610,7 +610,7 @@ def build_qmatrix_farmcpu(
         q_path = f"{gfile_prefix}.q.{qdim}.txt"
         if os.path.exists(q_path):
             logger.info(f"* Loading Q matrix from {q_path}...")
-            qmatrix = np.genfromtxt(q_path)
+            qmatrix = np.genfromtxt(q_path,dtype="float32")
         elif qdim == "0":
             qmatrix = np.array([]).reshape(geno.shape[1], 0)
         else:
@@ -621,7 +621,7 @@ def build_qmatrix_farmcpu(
             logger.info(f"Cached Q matrix written to {q_path}")
     else:
         logger.info(f"* Loading Q matrix from {qdim}...")
-        qmatrix = np.genfromtxt(qdim)
+        qmatrix = np.genfromtxt(qdim, dtype="float32")
 
     if cov_path:
         cov_arr = np.genfromtxt(cov_path, dtype=float)
