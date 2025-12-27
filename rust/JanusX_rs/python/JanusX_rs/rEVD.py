@@ -40,14 +40,14 @@ def _infer_input_kind(path_or_prefix: str) -> Literal["bed", "vcf"]:
 def lrGRM(
     input_path: str,
     *,
-    input_kind: Literal["auto", "bed", "vcf"] = "auto",
     k: int = 20,
     oversample: int = 10,
     n_iter: int = 2,
-    maf: float = 0.01,
-    miss: float = 0.1,
+    maf: float = 0.02,
+    miss: float = 0.05,
     seed: int = 1,
     threads: int = 4,
+    input_kind: Literal["auto", "bed", "vcf"] = "auto",
     return_float32: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
