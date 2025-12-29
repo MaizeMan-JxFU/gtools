@@ -67,6 +67,17 @@ from ._common.log import setup_logging
 # Helpers: GRM-based PCA (aligned with GWAS module)
 # ======================================================================
 
+def load_group_table(group_path: str) -> tuple[pd.DataFrame, str | None, str | None]:
+    group_df = pd.read_csv(group_path, sep="\t", header=None, index_col=0)
+    if group_df.shape[1] == 0:
+        raise ValueError(f"Group file has no columns: {group_path}")
+    if group_df.shape[1] == 1:
+        group_df.columns = ["group"]
+        return group_df, "group", None
+    group_df = group_df.iloc[:, :2]
+    group_df.columns = ["group", "label"]
+    return group_df, "group", "label"
+
 def build_grm_streaming_for_pca(
     genofile: str,
     maf_threshold: float = 0.01,
@@ -228,6 +239,10 @@ def main(log: bool = True):
         help="Generate 3D interactive scatter plot for PC1–PC3 (default: %(default)s)",
     )
     optional_group.add_argument(
+        "-gif3D", "--gif3D", action="store_true", default=False,
+        help="Generate 3D rotating GIF for PC1–PC3 (default: %(default)s)",
+    )
+    optional_group.add_argument(
         "-group", "--group", type=str, default=None,
         help=(
             "Group file with two columns: sample ID and group label (no header). "
@@ -235,8 +250,8 @@ def main(log: bool = True):
         ),
     )
     optional_group.add_argument(
-        "-color", "--color", type=int, default=1,
-        help="Color palette index for PCA plots, 0–6 (default: %(default)s)",
+        "-color", "--color", type=int, default=-1,
+        help="Color palette index for PCA plots, 0–6; -1 uses auto palette (default: %(default)s)",
     )
 
     args = parser.parse_args()
@@ -263,7 +278,11 @@ def main(log: bool = True):
 
     # Keep index for logging but convert to actual color palette
     palette_idx = args.color
-    args.color = color_set[palette_idx]
+    if args.color == -1:
+        args.color = None
+    else:
+        assert 0 <= args.color <= 6, "Color set index out of range; please use 0–6."
+        args.color = color_set[palette_idx]
 
     # ------------------------- Logging -------------------------
     os.makedirs(args.out, 0o755, exist_ok=True)
@@ -290,7 +309,9 @@ def main(log: bool = True):
             logger.info(f"3D visualization: {args.plot3D}")
         if args.group:
             logger.info(f"Group file:      {args.group}")
-            logger.info(f"Color palette:   index {palette_idx}")
+            logger.info(
+                f"Color palette:   {'auto' if palette_idx == -1 else f'index {palette_idx}'}"
+            )
         logger.info(f"Output prefix:    {args.out}/{args.prefix}")
         logger.info("*" * 60 + "\n")
 
@@ -396,8 +417,7 @@ def main(log: bool = True):
         raise RuntimeError("PCA results are not available; check input arguments.")
 
     # ------------------------- Visualization -------------------------
-    if args.plot:
-        logger.info("* Generating 2D PCA scatter plots...")
+    if args.plot or args.plot3D or args.gif3D:
         exp = 100 * eigenval / np.sum(eigenval)
         df_pc = pd.DataFrame(
             eigenvec[:, :3],
@@ -410,18 +430,11 @@ def main(log: bool = True):
         group = None
         textanno = None
         if args.group:
-            # Group file: 2 columns (ID, group) or 3 columns (ID, group, label), no header
-            group_df = pd.read_csv(
-                args.group,
-                sep="\t",
-                header=None,
-                index_col=0,
-            )
-            df_pc = pd.concat([df_pc, group_df], axis=1)
-            # First extra column: group; second (if present): annotation text
-            group = df_pc.columns[3]
-            if df_pc.shape[1] >= 5:
-                textanno = df_pc.columns[4]
+            group_df, group, textanno = load_group_table(args.group)
+            df_pc = df_pc.join(group_df, how="left")
+
+    if args.plot:
+        logger.info("* Generating 2D PCA scatter plots...")
 
         pcshow = PCSHOW(df_pc)
         fig = plt.figure(figsize=(10, 4), dpi=300)
@@ -457,29 +470,6 @@ def main(log: bool = True):
 
     if args.plot3D:
         logger.info("* Generating 3D PCA scatter plot...")
-        exp = 100 * eigenval / np.sum(eigenval)
-        df_pc = pd.DataFrame(
-            eigenvec[:, :3],
-            index=samples,
-            columns=[
-                f"PC{i + 1}({round(float(exp[i]), 2)}%)" for i in range(3)
-            ],
-        )
-
-        group = None
-        textanno = None
-        if args.group:
-            group_df = pd.read_csv(
-                args.group,
-                sep="\t",
-                header=None,
-                index_col=0,
-            )
-            df_pc = pd.concat([df_pc, group_df], axis=1)
-            group = df_pc.columns[3]
-            if df_pc.shape[1] >= 5:
-                textanno = df_pc.columns[4]
-
         pcshow = PCSHOW(df_pc)
         fig = pcshow.pcplot3D(
             df_pc.columns[0],
@@ -493,6 +483,21 @@ def main(log: bool = True):
         out_html = f"{args.out}/{args.prefix}.eigenvec.3D.html"
         fig.write_html(out_html)
         logger.info(f"3D PCA figure saved to {out_html.replace('//', '/')}")
+
+    if args.gif3D:
+        logger.info("* Generating 3D PCA rotating GIF...")
+        pcshow = PCSHOW(df_pc)
+        out_gif = f"{args.out}/{args.prefix}.eigenvec.3D.gif"
+        pcshow.pcplot3D_gif(
+            df_pc.columns[0],
+            df_pc.columns[1],
+            df_pc.columns[2],
+            group=group,
+            anno_tag=textanno,
+            color_set=args.color,
+            out_gif=out_gif,
+        )
+        logger.info(f"3D PCA GIF saved to {out_gif.replace('//', '/')}")
 
     # ------------------------- Final logging -------------------------
     lt = time.localtime()

@@ -37,6 +37,7 @@ from JanusX.bioplotkit import GWASPLOT
 from JanusX.bioplotkit.sci_set import color_set
 
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 import pandas as pd
 import numpy as np
 import argparse
@@ -45,6 +46,16 @@ import socket
 from ._common.readanno import readanno
 from joblib import Parallel, delayed
 import warnings
+
+
+def _auto_colors(n: int) -> list[str]:
+    if n <= 10:
+        cmap = plt.get_cmap("tab10")
+    elif n <= 20:
+        cmap = plt.get_cmap("tab20")
+    else:
+        cmap = plt.get_cmap("turbo")
+    return [mcolors.to_hex(cmap(i / max(1, n - 1))) for i in range(n)]
 
 
 def GWASplot(file: str, args, logger) -> None:
@@ -92,6 +103,10 @@ def GWASplot(file: str, args, logger) -> None:
 
         # Rasterization for non-PDF formats to keep file size reasonable
         rasterized = False if args.format == "pdf" else True
+
+        plot_colors = args.color
+        if plot_colors is None:
+            plot_colors = _auto_colors(len(plotmodel.chr_ids))
 
         if args.highlight:
             # Highlight specific SNPs (bed-like file: chr, start, end, gene, desc)
@@ -142,7 +157,7 @@ def GWASplot(file: str, args, logger) -> None:
             plotmodel.manhattan(
                 None,
                 ax=ax,
-                color_set=args.color,
+                color_set=plot_colors,
                 ignore=df_hl_idx,
                 rasterized=rasterized,
             )
@@ -151,7 +166,7 @@ def GWASplot(file: str, args, logger) -> None:
             plotmodel.manhattan(
                 -np.log10(threshold),
                 ax=ax,
-                color_set=args.color,
+                color_set=plot_colors,
                 rasterized=rasterized,
             )
 
@@ -163,7 +178,7 @@ def GWASplot(file: str, args, logger) -> None:
         # ----------------- QQ plot -----------------
         fig = plt.figure(figsize=(5, 4), dpi=300)
         ax2 = fig.add_subplot(111)
-        plotmodel.qq(ax=ax2, color_set=args.color)
+        plotmodel.qq(ax=ax2, color_set=plot_colors)
         plt.tight_layout()
         qq_path = f"{args.out}/{args.prefix}.qq.{args.format}"
         plt.savefig(qq_path, transparent=True)
@@ -292,7 +307,7 @@ def main():
     )
     optional_group.add_argument(
         "-color", "--color", type=int, default=0,
-        help="Color style index for Manhattan and QQ (0–6, default: %(default)s)",
+        help="Color style index for Manhattan and QQ (0–6); -1 uses auto palette (default: %(default)s)",
     )
     optional_group.add_argument(
         "-hl", "--highlight", type=str, default=None,
@@ -335,13 +350,16 @@ def main():
     # ------------------------------------------------------------------
     # Basic checks and configuration
     # ------------------------------------------------------------------
-    assert args.color <= 6, "Color set index out of range; please use 0–6."
+    assert args.color <= 6, "Color set index out of range; please use 0–6 or -1."
     assert args.format in ["pdf", "png", "svg", "tif"], (
         f"Unsupported figure format: {args.format} "
         "(choose from: pdf, png, svg, tif)"
     )
 
-    args.color = color_set[args.color]
+    if args.color == -1:
+        args.color = None
+    else:
+        args.color = color_set[args.color]
     args.out = os.path.dirname(args.file[0]) if args.out is None else args.out
     args.prefix = "JanusX" if args.prefix is None else args.prefix
 
@@ -372,7 +390,9 @@ def main():
     )
     if args.noplot:
         logger.info("Visualization:")
-        logger.info(f"  Color set:   {args.color}")
+        logger.info(
+            f"  Color set:   {'auto' if args.color is None else args.color}"
+        )
         logger.info(f"  Highlight:   {args.highlight}")
         logger.info(f"  Format:      {args.format}")
     if args.anno:
