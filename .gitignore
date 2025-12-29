@@ -1,35 +1,42 @@
-# Python-generated files
+# Python artifacts
 __pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
+*.so
 
-# Virtual environments
+# Virtual environments & editor settings
 .venv
 venv
 .vscode
-# test folder
-test*
 
-jx.bat
+# Project CLI binaries
 jx
+jx.bat
 
-# ignore huge matrix generated from gwas module
+# GWAS outputs (large matrices)
 example/*.q.*
 example/*.k.*
+test*.q.*
+test*.k.*
+test*.grm.*
+test*.gwas.*
 
-test.*
+# Test outputs
+test*
 
+# Tooling
 uv.lock
 .python-version
 
-.DS_store
+# OS files
+.DS_Store
 
-# rust
+# Rust build artifacts
 target
 *.lock
 
-# external binaries
+# External binaries
 ext/bin/*

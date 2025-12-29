@@ -14,7 +14,7 @@ use grm::{grm_pca_bed, grm_pca_vcf};
 // ============================================================
 
 #[pymodule]
-fn JanusX_rs(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn janusx(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<BedChunkReader>()?;
     m.add_class::<VcfChunkReader>()?;
     m.add_class::<PlinkStreamWriter>()?;

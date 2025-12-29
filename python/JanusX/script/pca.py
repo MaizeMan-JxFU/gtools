@@ -57,9 +57,9 @@ logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["ps.fonttype"] = 42
 
-from bioplotkit.sci_set import color_set
-from bioplotkit import PCSHOW
-from JanusX_rs.gfreader import load_genotype_chunks, inspect_genotype_file
+from JanusX.bioplotkit.sci_set import color_set
+from JanusX.bioplotkit import PCSHOW
+from JanusX.gfreader import load_genotype_chunks, inspect_genotype_file
 from ._common.log import setup_logging
 
 

@@ -11,7 +11,7 @@ This module provides:
 Notes
 -----
 - Rust backend functions are imported from the local extension module:
-    from .JanusX_rs import glmf32, lmm_reml_chunk_f32
+    from ..janusx import glmf32, lmm_reml_chunk_f32
 - Genotype matrix convention in THIS FILE:
     M (or snp_chunk) is SNP-major: shape = (m_snps, n_samples)
   i.e., rows are SNPs, columns are samples.
@@ -45,7 +45,7 @@ from joblib import Parallel, delayed, cpu_count
 from tqdm import trange
 
 # Rust core kernels (PyO3 extension)
-from .JanusX_rs import glmf32, lmm_reml_chunk_f32
+from ..janusx import glmf32, lmm_reml_chunk_f32
 
 
 def FEM(

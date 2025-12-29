@@ -275,7 +275,7 @@ pub fn randomized_grm_pca(
         }
     }
 
-    let mut y = pool.install(|| -> Result<DMatrix<f64>, String> {
+    let y = pool.install(|| -> Result<DMatrix<f64>, String> {
         // BED 用并行版本；VCF 用串行版本（线程池主要用于后续可能并行的计算）
         let mut yy = match kind {
             InputKind::Bed { prefix } => matmul_g_bed_parallel(prefix, maf, miss, den, &omega)?,

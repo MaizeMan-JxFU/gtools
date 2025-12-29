@@ -17,10 +17,10 @@ Execution mode (automatic)
   - FarmCPU always uses a full in-memory genotype matrix.
 
 Caching:
-  - GRM (kinship) and PCA (Q matrix) are cached on disk using a shared naming
-    scheme for streaming LMM/LM runs:
-      * GRM: {prefix}.k.{method}.txt
-      * Q   : {prefix}.q.{pcdim}.txt
+  - GRM (kinship) and PCA (Q matrix) are cached in the genotype folder
+    for streaming LMM/LM runs:
+      * GRM: {geno_prefix}.k.{method}.npy
+      * Q   : {geno_prefix}.q.{pcdim}.txt
 
 Covariates:
   - The --cov option is shared by LMM, LM and FarmCPU.
@@ -58,11 +58,11 @@ from joblib import cpu_count
 from tqdm import tqdm
 import psutil
 
-from bioplotkit import GWASPLOT
-from pyBLUP import QK
-from gfreader import breader, vcfreader
-from JanusX_rs.gfreader import load_genotype_chunks, inspect_genotype_file
-from JanusX_rs.assoc import LMM,LM,farmcpu
+from JanusX.bioplotkit import GWASPLOT
+from JanusX.pyBLUP import QK
+from JanusX.gfreader import breader, vcfreader
+from JanusX.gfreader import load_genotype_chunks, inspect_genotype_file
+from JanusX.pyBLUP import LMM, LM, farmcpu
 from ._common.log import setup_logging
 
 
@@ -127,6 +127,19 @@ def determine_genotype_source(args) -> tuple[str, str]:
 
     gfile = gfile.replace("\\", "/")
     return gfile, prefix
+
+
+def genotype_cache_prefix(genofile: str) -> str:
+    """
+    Build cache prefix inside the genotype folder.
+    """
+    base = os.path.basename(genofile)
+    if base.endswith(".vcf.gz"):
+        base = base[: -len(".vcf.gz")]
+    elif base.endswith(".vcf"):
+        base = base[: -len(".vcf")]
+    cache_dir = os.path.dirname(genofile) or "."
+    return os.path.join(cache_dir, base).replace("\\", "/")
 
 
 def load_phenotype(phenofile: str, ncol: list[int] | None, logger) -> pd.DataFrame:
@@ -222,7 +235,7 @@ def build_grm_streaming(
 
 def load_or_build_grm_with_cache(
     genofile: str,
-    prefix: str,
+    cache_prefix: str,
     mgrm: str,
     maf_threshold: float,
     max_missing_rate: float,
@@ -237,7 +250,7 @@ def load_or_build_grm_with_cache(
     method_is_builtin = mgrm in ["1", "2"]
 
     if method_is_builtin:
-        km_path = f"{prefix}.k.{mgrm}"
+        km_path = f"{cache_prefix}.k.{mgrm}"
         if os.path.exists(f'{km_path}.npy'):
             logger.info(f"Loading cached GRM from {km_path}.npy...")
             grm = np.load(f'{km_path}.npy',mmap_mode='r')
@@ -285,7 +298,7 @@ def build_pcs_from_grm(grm: np.ndarray, dim: int, logger: logging.Logger) -> np.
 
 def load_or_build_q_with_cache(
     grm: np.ndarray,
-    prefix: str,
+    cache_prefix: str,
     pcdim: str,
     logger,
 ) -> np.ndarray:
@@ -296,7 +309,7 @@ def load_or_build_q_with_cache(
 
     if pcdim in np.arange(1, n).astype(str):
         dim = int(pcdim)
-        q_path = f"{prefix}.q.{pcdim}.txt"
+        q_path = f"{cache_prefix}.q.{pcdim}.txt"
         if os.path.exists(q_path):
             logger.info(f"Loading cached Q matrix from {q_path}...")
             qmatrix = np.genfromtxt(q_path, dtype="float32")
@@ -375,9 +388,12 @@ def prepare_streaming_context(
     n_samples = len(ids)
     logger.info(f"Genotype meta: {n_samples} samples, {n_snps} SNPs.")
 
+    cache_prefix = genotype_cache_prefix(genofile)
+    logger.info(f"Cache prefix (genotype folder): {cache_prefix}")
+
     grm, eff_m = load_or_build_grm_with_cache(
         genofile=genofile,
-        prefix=outprefix,
+        cache_prefix=cache_prefix,
         mgrm=mgrm,
         maf_threshold=maf_threshold,
         max_missing_rate=max_missing_rate,
@@ -387,7 +403,7 @@ def prepare_streaming_context(
 
     qmatrix = load_or_build_q_with_cache(
         grm=grm,
-        prefix=outprefix,
+        cache_prefix=cache_prefix,
         pcdim=pcdim,
         logger=logger,
     )

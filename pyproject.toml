@@ -26,11 +26,14 @@ index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 python-install-mirror = "https://registry.npmmirror.com/-/binary/python-build-standalone/"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/pyBLUP","src/gfreader","src/bioplotkit","src/script"]
+[tool.maturin]
+bindings = "pyo3"
+strip = true
+module-name = "JanusX.janusx"
+python-source = "python"
 
 [project.scripts]
-jx = "script.JanusX:main"
+jx = "JanusX.script.JanusX:main"

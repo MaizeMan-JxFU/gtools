@@ -1,5 +1,6 @@
 # from . import base
 from .base import *
+from .gfreader import *
 
 
 __name__ = "Genotype Reader"

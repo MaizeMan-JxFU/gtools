@@ -77,10 +77,10 @@ from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
-from bioplotkit.sci_set import color_set
-from bioplotkit import gsplot
-from gfreader import breader, vcfreader, npyreader
-from pyBLUP import QK, BLUP, kfold
+from JanusX.bioplotkit.sci_set import color_set
+from JanusX.bioplotkit import gsplot
+from JanusX.gfreader import breader, vcfreader, npyreader
+from JanusX.pyBLUP import QK, BLUP, kfold
 from ._common.log import setup_logging
 
 

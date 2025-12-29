@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from bioplotkit.sci_set import marker_set
+from .sci_set import marker_set
 
 class PCSHOW:
     def __init__(self,data:pd.DataFrame,):

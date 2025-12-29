@@ -1,6 +1,6 @@
 import time
 from itertools import takewhile,repeat
-from JanusX_rs.gfreader import load_genotype_chunks,inspect_genotype_file
+from .gfreader import load_genotype_chunks, inspect_genotype_file
 import numpy as np
 import pandas as pd
 import gzip

@@ -180,7 +180,7 @@ fn student_t_p_two_sided(t: f64, df: i32) -> f64 {
 // =============================================================================
 
 #[inline]
-fn xs_t_iXX_into(xs: &[f64], ixx: &[f64], q0: usize, out_b21: &mut [f64]) {
+fn xs_t_ixx_into(xs: &[f64], ixx: &[f64], q0: usize, out_b21: &mut [f64]) {
     debug_assert_eq!(out_b21.len(), q0);
     for j in 0..q0 {
         let mut acc = 0.0;
@@ -192,13 +192,13 @@ fn xs_t_iXX_into(xs: &[f64], ixx: &[f64], q0: usize, out_b21: &mut [f64]) {
 }
 
 #[inline]
-fn build_iXXs_into(iXX: &[f64], b21: &[f64], invb22: f64, q0: usize, out_ixxs: &mut [f64]) {
+fn build_ixxs_into(ixx: &[f64], b21: &[f64], invb22: f64, q0: usize, out_ixxs: &mut [f64]) {
     let dim = q0 + 1;
     debug_assert_eq!(out_ixxs.len(), dim * dim);
 
     for r in 0..q0 {
         for c in 0..q0 {
-            out_ixxs[r * dim + c] = iXX[r * q0 + c] + invb22 * (b21[r] * b21[c]);
+            out_ixxs[r * dim + c] = ixx[r * q0 + c] + invb22 * (b21[r] * b21[c]);
         }
     }
 
@@ -249,7 +249,7 @@ impl GlmScratch {
 /// Fast GLM for:
 /// y: (n,) float64
 /// X: (n, q0) float64
-/// iXX: (q0, q0) float64
+/// ixx: (q0, q0) float64
 /// G: (m, n) float32  (marker rows)
 ///
 /// Return: (m, q0+3) float64
@@ -278,7 +278,7 @@ pub fn glmf32<'py>(
         return Err(PyRuntimeError::new_err("X.n_rows must equal len(y)"));
     }
     if ixx_arr.shape()[0] != q0 || ixx_arr.shape()[1] != q0 {
-        return Err(PyRuntimeError::new_err("iXX must be (q0,q0)"));
+        return Err(PyRuntimeError::new_err("ixx must be (q0,q0)"));
     }
     if g_arr.shape()[1] != n {
         return Err(PyRuntimeError::new_err(
@@ -355,7 +355,7 @@ pub fn glmf32<'py>(
                                 }
                             }
 
-                            xs_t_iXX_into(&scr.xs, &ixx_flat, q0, &mut scr.b21);
+                            xs_t_ixx_into(&scr.xs, &ixx_flat, q0, &mut scr.b21);
                             let t2 = dot(&scr.b21, &scr.xs);
                             let b22 = ss - t2;
 
@@ -369,7 +369,7 @@ pub fn glmf32<'py>(
                                 return;
                             }
 
-                            build_iXXs_into(&ixx_flat, &scr.b21, invb22, q0, &mut scr.ixxs);
+                            build_ixxs_into(&ixx_flat, &scr.b21, invb22, q0, &mut scr.ixxs);
 
                             scr.rhs[..q0].copy_from_slice(&xy);
                             scr.rhs[q0] = sy;

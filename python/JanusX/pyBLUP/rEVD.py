@@ -4,7 +4,7 @@ from typing import Tuple, Literal
 import os
 import numpy as np
 
-from .JanusX_rs import grm_pca_bed, grm_pca_vcf
+from ..janusx import grm_pca_bed, grm_pca_vcf
 
 
 def _infer_input_kind(path_or_prefix: str) -> Literal["bed", "vcf"]:

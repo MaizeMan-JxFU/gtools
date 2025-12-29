@@ -150,6 +150,7 @@ pub fn process_snp_row(
 // BED SNP iterator (single SNP each time): returns Vec<f32> (len n)
 // ======================================================================
 pub struct BedSnpIter {
+    #[allow(dead_code)]
     pub prefix: String,
     pub samples: Vec<String>,
     pub sites: Vec<SiteInfo>,
