@@ -10,7 +10,7 @@ warnings.filterwarnings(
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.backends.backend_pdf # pdf support
-from script import gwas,gs,postGWAS,grm,pca,sim
+from JanusX.script import gwas,gs,postGWAS,grm,pca,sim
 
 __logo__ = r'''
        _                      __   __
