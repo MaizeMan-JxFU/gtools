@@ -30,8 +30,8 @@ build-backend = "maturin"
 [tool.maturin]
 bindings = "pyo3"
 strip = true
-module-name = "JanusX.janusx"
+module-name = "janusx.janusx"
 python-source = "python"
 
 [project.scripts]
-jx = "JanusX.script.JanusX:main"
+jx = "janusx.script.JanusX:main"

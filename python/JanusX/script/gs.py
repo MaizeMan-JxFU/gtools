@@ -69,11 +69,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from scipy.stats import pearsonr, spearmanr
-
-from JanusX.bioplotkit.sci_set import color_set
-from JanusX.bioplotkit import gsplot
-from JanusX.gfreader import breader, vcfreader
-from JanusX.pyBLUP import QK, BLUP, kfold
+from janusx.bioplotkit.sci_set import color_set
+from janusx.bioplotkit import gsplot
+from janusx.gfreader import breader, vcfreader
+from janusx.pyBLUP import QK, BLUP, kfold
 from ._common.log import setup_logging
 
 

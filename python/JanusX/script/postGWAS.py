@@ -32,9 +32,8 @@ for key in ["MPLBACKEND"]:
 
 import matplotlib as mpl
 mpl.use("Agg")
-
-from JanusX.bioplotkit import GWASPLOT
-from JanusX.bioplotkit.sci_set import color_set
+from janusx.bioplotkit import GWASPLOT
+from janusx.bioplotkit.sci_set import color_set
 
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors

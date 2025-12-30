@@ -128,7 +128,7 @@ def Eigendec(grm:np.ndarray):
     return eigvec,eigval
 
 if __name__ == '__main__':
-    from JanusX.gfreader import breader
+    from janusx.gfreader import breader
     geno = breader(r"C:\Users\82788\Desktop\Pyscript\装饰器\geno.45k")
     M = geno.iloc[:,2:].values.T
     qkmodel = QK(M,log=True)

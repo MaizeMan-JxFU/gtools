@@ -57,12 +57,11 @@ import pandas as pd
 from joblib import cpu_count
 from tqdm import tqdm
 import psutil
-
-from JanusX.bioplotkit import GWASPLOT
-from JanusX.pyBLUP import QK
-from JanusX.gfreader import breader, vcfreader
-from JanusX.gfreader import load_genotype_chunks, inspect_genotype_file
-from JanusX.pyBLUP import LMM, LM, FastLMM, farmcpu
+from janusx.bioplotkit import GWASPLOT
+from janusx.pyBLUP import QK
+from janusx.gfreader import breader, vcfreader
+from janusx.gfreader import load_genotype_chunks, inspect_genotype_file
+from janusx.pyBLUP import LMM, LM, FastLMM, farmcpu
 from ._common.log import setup_logging
 
 
@@ -442,7 +441,8 @@ def run_chunked_gwas_lmm_lm(
     model_key = model_name.lower()
     ModelCls = model_map[model_key]
     model_label = {"lmm": "LMM", "lm": "LM", "fastlmm": "fastLMM"}[model_key]
-    model_tag = model_key
+    # Keep output file suffixes consistent and lowercase.
+    model_tag = model_label.lower()
 
     process = psutil.Process()
     n_cores = psutil.cpu_count(logical=True) or cpu_count()
