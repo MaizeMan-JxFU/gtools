@@ -25,7 +25,6 @@ test*
 
 # Tooling
 uv.lock
-.python-version
 webapp/db.sqlite3
 webapp/media/
 
