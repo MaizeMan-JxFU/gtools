@@ -1,5 +1,5 @@
 [project]
-name = "JanusX"
+name = "janusx"
 version = "1.0.3"
 description = "A Suite of Genotyping Tools for Genome-Wide Association Study and Genomic Selection"
 requires-python = ">=3.10,<3.13"
