@@ -7,11 +7,11 @@ package:
 
 source:
   url: https://github.com/MaizeMan-JxFU/JanusX/archive/refs/tags/v{{ version }}.tar.gz
-  sha256: 2f28e77a6ba66eb69909812ded51b9e8f7250070988842a88ee1e2f2f2c17468
+  sha256: 7a0f1c142f53e45a99ced7f90b7de3a07f7d7303165514cf5226d933e9490601
 
 build:
   number: 0
-  skip: true  # [py<39 or py>312]
+  skip: true  # [py<310 or py>312]
   run_exports:
     - {{ pin_subpackage('janusx', max_pin='x.x') }}
 
@@ -32,8 +32,7 @@ requirements:
     - matplotlib-base
     - psutil
     - tqdm
-    - scikit-learn
-    - joblib >=1.5.2
+    - joblib ==1.5.2
 
 test:
   imports:

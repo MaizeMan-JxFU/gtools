@@ -4,17 +4,13 @@ JanusX – Genomic Selection Command-Line Interface
 
 Supported models
 ----------------
-  - GBLUP    : Genomic Best Linear Unbiased Prediction (GBLUP, kinship = 1)
-  - rrBLUP   : Ridge regression BLUP (rrBLUP, kinship = None)
-  - RF       : Random Forest regressor with randomized hyperparameter search
-  - SVM      : Support Vector Regression (SVR) with grid search
-  - AdaBoost : AdaBoost regressor with grid search
+  - GBLUP  : Genomic Best Linear Unbiased Prediction (GBLUP, kinship = 1)
+  - rrBLUP : Ridge regression BLUP (rrBLUP, kinship = None)
 
 Genotype input formats
 ----------------------
   - VCF   : .vcf or .vcf.gz (using gfreader.vcfreader)
   - PLINK : Binary PLINK (.bed/.bim/.fam) via prefix (using gfreader.breader)
-  - NPY   : npz/snp/idv bundle (using gfreader.npyreader)
 
 Phenotype input format
 ----------------------
@@ -73,13 +69,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from scipy.stats import pearsonr, spearmanr
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 from JanusX.bioplotkit.sci_set import color_set
 from JanusX.bioplotkit import gsplot
-from JanusX.gfreader import breader, vcfreader, npyreader
+from JanusX.gfreader import breader, vcfreader
 from JanusX.pyBLUP import QK, BLUP, kfold
 from ._common.log import setup_logging
 
@@ -92,7 +85,7 @@ def GSapi(
     Y: np.ndarray,
     Xtrain: np.ndarray,
     Xtest: np.ndarray,
-    method: typing.Literal["GBLUP", "rrBLUP", "RF", "SVM", "AdaBoost"],
+    method: typing.Literal["GBLUP", "rrBLUP"],
     PCAdec: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -106,7 +99,7 @@ def GSapi(
         Genotype matrix for training individuals, shape (m_markers, n_train).
     Xtest : np.ndarray
         Genotype matrix for test individuals, shape (m_markers, n_test).
-    method : {'GBLUP', 'rrBLUP', 'RF', 'SVM', 'AdaBoost'}
+    method : {'GBLUP', 'rrBLUP'}
         Prediction model.
     PCAdec : bool, optional
         If True, perform PCA-based dimensionality reduction before modeling.
@@ -143,53 +136,6 @@ def GSapi(
         model = BLUP(Y.reshape(-1, 1), Xtrain, kinship=None)
         return model.predict(Xtrain), model.predict(Xtest)
 
-    # Tree-based model: Random Forest
-    if method == "RF":
-        param_grid = {
-            "n_estimators": [10, 25, 50, 75],
-            "max_depth": [None, 1, 3, 5, 7, 10],
-            "min_samples_split": [2, 5, 10],
-            "min_samples_leaf": [1, 2, 4, 8],
-        }
-        grid = RandomizedSearchCV(
-            RandomForestRegressor(),
-            param_distributions=param_grid,
-            cv=5,
-            n_jobs=-1,
-            n_iter=30,
-        )
-        grid.fit(Xtrain.T, Y.flatten())
-        return (
-            grid.predict(Xtrain.T).reshape(-1, 1),
-            grid.predict(Xtest.T).reshape(-1, 1),
-        )
-
-    # Kernel-based model: Support Vector Regression
-    if method == "SVM":
-        param_grid = {
-            "C": [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2],
-            "gamma": ["scale", 0.01, 0.1],
-        }
-        grid = GridSearchCV(SVR(), param_grid, cv=5, n_jobs=-1)
-        grid.fit(Xtrain.T, Y.flatten())
-        return (
-            grid.predict(Xtrain.T).reshape(-1, 1),
-            grid.predict(Xtest.T).reshape(-1, 1),
-        )
-
-    # Boosting model: AdaBoost
-    if method == "AdaBoost":
-        param_grid = {
-            "n_estimators": range(50, 500, 50),
-            "learning_rate": [0.01, 0.1, 0.5, 1.0],
-        }
-        grid = GridSearchCV(AdaBoostRegressor(), param_grid, cv=5, n_jobs=-1)
-        grid.fit(Xtrain.T, Y.flatten())
-        return (
-            grid.predict(Xtrain.T).reshape(-1, 1),
-            grid.predict(Xtest.T).reshape(-1, 1),
-        )
-
     raise ValueError(f"Unsupported GS method: {method}")
 
 
@@ -221,13 +167,6 @@ def main(log: bool = True) -> None:
         help="Input genotype files in PLINK binary format "
              "(prefix for .bed, .bim, .fam)",
     )
-    geno_group.add_argument(
-        "-npy", "--npy",
-        type=str,
-        help="Input genotype matrix in NPY bundle format "
-             "(prefix for .npz, .snp, .idv)",
-    )
-
     required_group.add_argument(
         "-p", "--pheno",
         type=str,
@@ -253,28 +192,6 @@ def main(log: bool = True) -> None:
         help="Use rrBLUP model for training and prediction "
              "(default: %(default)s)",
     )
-    model_group.add_argument(
-        "-SVM", "--SVM",
-        action="store_true",
-        default=False,
-        help="Use Support Vector Regression for training and prediction "
-             "(default: %(default)s)",
-    )
-    model_group.add_argument(
-        "-RF", "--RF",
-        action="store_true",
-        default=False,
-        help="Use Random Forest for training and prediction "
-             "(default: %(default)s)",
-    )
-    model_group.add_argument(
-        "-ADB", "--AdaBoost",
-        action="store_true",
-        default=False,
-        help="Use AdaBoost regressor for training and prediction "
-             "(default: %(default)s)",
-    )
-
     # ------------------------------------------------------------------
     # Optional arguments
     # ------------------------------------------------------------------
@@ -331,11 +248,8 @@ def main(log: bool = True) -> None:
     elif args.bfile:
         gfile = args.bfile
         args.prefix = os.path.basename(gfile) if args.prefix is None else args.prefix
-    elif args.npy:
-        gfile = args.npy
-        args.prefix = os.path.basename(gfile) if args.prefix is None else args.prefix
     else:
-        raise ValueError("No genotype input detected. Use -vcf, -bfile or -npy.")
+        raise ValueError("No genotype input detected. Use -vcf or -bfile.")
 
     gfile = gfile.replace("\\", "/")  # Normalize Windows-style paths
     args.out = args.out if args.out is not None else "."
@@ -369,16 +283,6 @@ def main(log: bool = True) -> None:
         if args.rrBLUP:
             model_count += 1
             logger.info(f"Used model{model_count}:     rrBLUP")
-        if args.SVM:
-            model_count += 1
-            logger.info(f"Used model{model_count}:     Support Vector Machine")
-        if args.RF:
-            model_count += 1
-            logger.info(f"Used model{model_count}:     Random Forest")
-        if args.AdaBoost:
-            model_count += 1
-            logger.info(f"Used model{model_count}:     AdaBoost")
-
         logger.info(f"Use PCA:         {args.pcd}")
         if args.plot:
             logger.info(f"Plot mode:       {args.plot}")
@@ -414,13 +318,7 @@ def main(log: bool = True) -> None:
         methods.append("GBLUP")
     if args.rrBLUP:
         methods.append("rrBLUP")
-    if args.SVM:
-        methods.append("SVM")
-    if args.RF:
-        methods.append("RF")
-    if args.AdaBoost:
-        methods.append("AdaBoost")
-    assert len(methods) > 0, "No model selected. Use --GBLUP/--rrBLUP/--SVM/--RF/--AdaBoost."
+    assert len(methods) > 0, "No model selected. Use --GBLUP/--rrBLUP."
 
     # ------------------------------------------------------------------
     # Load genotype
@@ -431,9 +329,6 @@ def main(log: bool = True) -> None:
     elif args.bfile:
         logger.info(f"Loading genotype from {gfile}.bed...")
         geno_df = breader(gfile)
-    elif args.npy:
-        logger.info(f"Loading genotype from {gfile}.npz...")
-        geno_df = npyreader(gfile)
     else:
         raise ValueError("Genotype input not recognized.")
 
@@ -482,10 +377,6 @@ def main(log: bool = True) -> None:
 
         for idx_method, method in enumerate(methods, start=1):
             logger.info(f"Method{idx_method}: {method}")
-            if method not in ["GBLUP", "rrBLUP"]:
-                logger.info(
-                    f"Training the {method} model may take a long time on large data sets."
-                )
 
             fold_test_pairs = []
             fold_train_pairs = []

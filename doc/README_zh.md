@@ -35,7 +35,6 @@ This document describes all command-line tools in JanusX.
 
 - VCF: `.vcf` 或 `.vcf.gz`
 - PLINK: `.bed`/`.bim`/`.fam` (使用前缀)
-- NPY: `.npz`/`.snp`/`.idv` (使用前缀)
 
 **表型文件 (Phenotype)**:
 
@@ -135,18 +134,15 @@ This document describes all command-line tools in JanusX.
 |------|----------|------|
 | **GBLUP** | 线性模型 | 基于亲缘关系矩阵，计算稳定 |
 | **rrBLUP** | 岭回归 | 无需亲缘关系，适合高维数据 |
-| **RF** | 集成学习 | 可捕获非线性关系 |
-| **SVM** | 核方法 | 适合小样本 |
-| **AdaBoost** | 集成学习 | 自适应权重调整 |
 
 ### 使用方法
 
 ```bash
-# 运行所有模型
-./jx gs --vcf data.vcf.gz --pheno pheno.txt --out out/
+# 运行全部模型
+./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --rrBLUP --out out/
 
 # 指定模型
-./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --rrBLUP --RF --out out/
+./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --out out/
 
 # 指定特定表型列 (1-based 索引)
 ./jx gs --vcf data.vcf.gz --pheno pheno.txt --n 0 --GBLUP --out out/
@@ -161,13 +157,9 @@ This document describes all command-line tools in JanusX.
 |------|------|--------|
 | `-vcf/--vcf` | VCF 基因型文件路径 | 互斥组 |
 | `-bfile/--bfile` | PLINK 格式前缀 | 互斥组 |
-| `-npy/--npy` | NPY 格式前缀 | 互斥组 |
 | `-p/--pheno` | 表型文件路径 | 必填 |
 | `-GBLUP/--GBLUP` | 使用 GBLUP 模型 | False |
 | `-rrBLUP/--rrBLUP` | 使用 rrBLUP 模型 | False |
-| `-SVM/--SVM` | 使用 SVM 模型 | False |
-| `-RF/--RF` | 使用随机森林模型 | False |
-| `-ADB/--AdaBoost` | 使用 AdaBoost 模型 | False |
 | `-pcd/--pcd` | 启用 PCA 降维 (自动选择主成分数) | False |
 | `-n/--ncol` | 表型列索引 (1-based) | 全部列 |
 | `-plot/--plot` | 生成预测结果散点图 | False |

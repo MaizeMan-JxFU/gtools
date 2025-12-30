@@ -46,7 +46,7 @@ Note that running `./jx -h` might take a while at first! This is because the Pyt
 | `lm` | Linear Model GWAS (streaming, low-memory) |
 | `lmm` | Linear Mixed Model GWAS (streaming, low-memory) |
 | `farmcpu` | FarmCPU GWAS (high-memory) |
-| `gs` | Genomic Selection (GBLUP, rrBLUP, RF, SVM, AdaBoost) |
+| `gs` | Genomic Selection (GBLUP, rrBLUP) |
 | `postGWAS` | Visualization and annotation |
 | `grm` | Genetic relationship matrix calculation |
 | `pca` | Principal component analysis |
@@ -78,11 +78,11 @@ Note that running `./jx -h` might take a while at first! This is because the Pyt
 ### Genomic Selection
 
 ```bash
-# Run all GS models
-./jx gs --vcf data.vcf.gz --pheno pheno.txt --out results
+# Run both GS models
+./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --rrBLUP --out results
 
 # Specific models
-./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --rrBLUP --RF --out results
+./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --out results
 
 # With PCA-based dimensionality reduction
 ./jx gs --vcf data.vcf.gz --pheno pheno.txt --GBLUP --pcd --out results
@@ -127,7 +127,6 @@ Tab-delimited, first column is sample ID, subsequent columns are phenotypes:
 
 - **VCF**: `.vcf` or `.vcf.gz`
 - **PLINK**: `.bed`/`.bim`/`.fam` (use prefix)
-- **NPY**: `.npz`/`.snp`/`.idv` (use prefix)
 
 ## Architecture
 
@@ -175,9 +174,6 @@ Each module corresponds to a CLI command. The launcher script (`jx`) dispatches 
 |--------|-------------|----------|
 | **GBLUP** | Genomic Best Linear Unbiased Prediction | Baseline prediction |
 | **rrBLUP** | Ridge Regression BLUP | Additive genetic value estimation |
-| **Random Forest** | Ensemble tree-based prediction | Non-linear effects |
-| **SVM** | Support Vector Machine | Complex pattern capture |
-| **AdaBoost** | Adaptive Boosting ensemble | High-dimensional data |
 
 ### Kinship Methods
 

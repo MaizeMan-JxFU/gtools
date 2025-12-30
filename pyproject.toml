@@ -2,7 +2,7 @@
 name = "JanusX"
 version = "1.0.2"
 description = "A Suite of Genotyping Tools for Genome-Wide Association Study and Genomic Selection"
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "numpy",
     "pandas<3.0",
@@ -10,8 +10,7 @@ dependencies = [
     "matplotlib",
     "psutil",
     "tqdm",
-    "scikit-learn",
-    "joblib>=1.5.2",
+    "joblib==1.5.2",
 ]
 authors = [
   {name = "Jingxian FU", email = "827888724@qq.com"},
@@ -36,4 +35,3 @@ python-source = "python"
 
 [project.scripts]
 jx = "JanusX.script.JanusX:main"
-
