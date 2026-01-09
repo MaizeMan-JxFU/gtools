@@ -8,6 +8,8 @@ use std::fs::File;
 use std::io::{BufRead, BufWriter, Write};
 use std::path::Path;
 
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use memmap2::Mmap;
 
 use crate::gfcore::{open_text_maybe_gz, read_bim, read_fam, SiteInfo};
@@ -121,6 +123,48 @@ impl PyMergeStats {
 }
 
 // ============================================================
+// Conversion stats (PyO3-facing)
+// ============================================================
+
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct PyConvertStats {
+    #[pyo3(get)]
+    pub input: String,
+    #[pyo3(get)]
+    pub out_fmt: String,
+    #[pyo3(get)]
+    pub out: String,
+
+    #[pyo3(get)]
+    pub n_samples: usize,
+    #[pyo3(get)]
+    pub n_sites_seen: u64,
+    #[pyo3(get)]
+    pub n_sites_written: u64,
+    #[pyo3(get)]
+    pub n_sites_dropped_multiallelic: u64,
+    #[pyo3(get)]
+    pub n_sites_dropped_non_snp: u64,
+}
+
+#[pymethods]
+impl PyConvertStats {
+    pub fn as_dict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let d = PyDict::new_bound(py);
+        d.set_item("input", &self.input)?;
+        d.set_item("out_fmt", &self.out_fmt)?;
+        d.set_item("out", &self.out)?;
+        d.set_item("n_samples", self.n_samples)?;
+        d.set_item("n_sites_seen", self.n_sites_seen)?;
+        d.set_item("n_sites_written", self.n_sites_written)?;
+        d.set_item("n_sites_dropped_multiallelic", self.n_sites_dropped_multiallelic)?;
+        d.set_item("n_sites_dropped_non_snp", self.n_sites_dropped_non_snp)?;
+        Ok(d)
+    }
+}
+
+// ============================================================
 // Allele helpers (biallelic A/C/G/T only; allow swap + strand complement)
 // ============================================================
 
@@ -204,6 +248,21 @@ fn gt_to_dosage(gt: &str) -> f32 {
         "1/1" | "1|1" => 2.0,
         "./." | ".|." => -9.0,
         _ => -9.0,
+    }
+}
+
+#[inline]
+fn dosage_to_i8(g: f32) -> i8 {
+    if g < 0.0 {
+        -9
+    } else if (g - 0.0).abs() < 1e-6 {
+        0
+    } else if (g - 1.0).abs() < 1e-6 {
+        1
+    } else if (g - 2.0).abs() < 1e-6 {
+        2
+    } else {
+        -9
     }
 }
 
@@ -433,52 +492,94 @@ impl InputIter {
 // Output writers
 // ============================================================
 
+enum VcfOut {
+    Plain(BufWriter<File>),
+    Gzip(BufWriter<GzEncoder<File>>),
+}
+
+impl VcfOut {
+    #[inline]
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        match self {
+            VcfOut::Plain(w) => w.write_all(buf),
+            VcfOut::Gzip(w) => w.write_all(buf),
+        }
+    }
+
+    #[inline]
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            VcfOut::Plain(w) => w.flush(),
+            VcfOut::Gzip(w) => w.flush(),
+        }
+    }
+
+    #[inline]
+    fn finish(mut self) -> std::io::Result<()> {
+        self.flush()?;
+        match self {
+            VcfOut::Plain(_) => Ok(()),
+            VcfOut::Gzip(w) => {
+                let enc = w.into_inner()?;
+                let _file = enc.finish()?;
+                Ok(())
+            }
+        }
+    }
+}
+
 struct VcfWriter {
-    w: BufWriter<File>,
+    out: VcfOut,
     n_samples_total: usize,
 }
 
 impl VcfWriter {
     fn new(out: &str, sample_ids: &[String]) -> Result<Self, String> {
         let f = File::create(out).map_err(|e| e.to_string())?;
-        let mut w = BufWriter::new(f);
+        let mut out = if out.ends_with(".gz") {
+            let enc = GzEncoder::new(f, Compression::default());
+            VcfOut::Gzip(BufWriter::new(enc))
+        } else {
+            VcfOut::Plain(BufWriter::new(f))
+        };
 
-        writeln!(w, "##fileformat=VCFv4.2").map_err(|e| e.to_string())?;
-        writeln!(w, "##source=JanusX-merge").map_err(|e| e.to_string())?;
-        writeln!(
-            w,
-            "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"
-        ).map_err(|e| e.to_string())?;
+        out.write_all(b"##fileformat=VCFv4.2\n").map_err(|e| e.to_string())?;
+        out.write_all(b"##source=JanusX-merge\n").map_err(|e| e.to_string())?;
+        out.write_all(b"##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n")
+            .map_err(|e| e.to_string())?;
 
-        write!(w, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT").map_err(|e| e.to_string())?;
+        out.write_all(b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT")
+            .map_err(|e| e.to_string())?;
         for s in sample_ids {
-            write!(w, "\t{s}").map_err(|e| e.to_string())?;
+            out.write_all(b"\t").map_err(|e| e.to_string())?;
+            out.write_all(s.as_bytes()).map_err(|e| e.to_string())?;
         }
-        writeln!(w).map_err(|e| e.to_string())?;
+        out.write_all(b"\n").map_err(|e| e.to_string())?;
 
-        Ok(Self { w, n_samples_total: sample_ids.len() })
+        Ok(Self { out, n_samples_total: sample_ids.len() })
     }
 
     fn write_site(&mut self, site: &SiteInfo, gref: &str, galt: &str, row_i8: &[i8]) -> Result<(), String> {
         let vid = format!("{}_{}", site.chrom, site.pos); // keep consistent with BIM style
-        write!(
-            self.w,
+        let prefix = format!(
             "{}\t{}\t{}\t{}\t{}\t.\tPASS\t.\tGT",
             site.chrom, site.pos, vid, gref, galt
-        ).map_err(|e| e.to_string())?;
+        );
+        self.out.write_all(prefix.as_bytes()).map_err(|e| e.to_string())?;
 
         if row_i8.len() != self.n_samples_total {
             return Err("Internal error: VCF row length mismatch".into());
         }
         for &g in row_i8 {
-            write!(self.w, "\t{}", i8_to_vcf_gt(g)).map_err(|e| e.to_string())?;
+            self.out.write_all(b"\t").map_err(|e| e.to_string())?;
+            self.out.write_all(i8_to_vcf_gt(g).as_bytes()).map_err(|e| e.to_string())?;
         }
-        writeln!(self.w).map_err(|e| e.to_string())?;
+        self.out.write_all(b"\n").map_err(|e| e.to_string())?;
         Ok(())
     }
 
     fn finish(mut self) -> Result<(), String> {
-        self.w.flush().map_err(|e| e.to_string())?;
+        self.out.finish().map_err(|e| e.to_string())?;
         Ok(())
     }
 }
@@ -820,6 +921,117 @@ pub fn merge_genotypes(inputs: Vec<String>, out: String, out_fmt: Option<String>
     }
 
     // finalize writers
+    match fmt {
+        OutFmt::Vcf => {
+            vcf_w
+                .take()
+                .unwrap()
+                .finish()
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+        }
+        OutFmt::Plink => {
+            plink_w
+                .take()
+                .unwrap()
+                .finish()
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+        }
+    }
+
+    Ok(stats)
+}
+
+// ============================================================
+// Single-input conversion (PyO3)
+// ============================================================
+
+#[pyfunction(signature = (input, out, out_fmt=None))]
+pub fn convert_genotypes(input: String, out: String, out_fmt: Option<String>) -> PyResult<PyConvertStats> {
+    let fmt = infer_out_fmt(&out, out_fmt.as_deref().unwrap_or("auto"))
+        .map_err(pyo3::exceptions::PyValueError::new_err)?;
+
+    let mut it = InputIter::new(&input)
+        .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+
+    let sample_ids: Vec<String> = it.sample_ids().iter().cloned().collect();
+    let n_samples = it.n_samples();
+
+    let mut stats = PyConvertStats {
+        input: input.clone(),
+        out_fmt: match fmt { OutFmt::Vcf => "vcf".into(), OutFmt::Plink => "plink".into() },
+        out: out.clone(),
+        n_samples,
+        n_sites_seen: 0,
+        n_sites_written: 0,
+        n_sites_dropped_multiallelic: 0,
+        n_sites_dropped_non_snp: 0,
+    };
+
+    let mut vcf_w: Option<VcfWriter> = None;
+    let mut plink_w: Option<PlinkBfileWriter> = None;
+    match fmt {
+        OutFmt::Vcf => {
+            vcf_w = Some(
+                VcfWriter::new(&out, &sample_ids)
+                    .map_err(pyo3::exceptions::PyRuntimeError::new_err)?,
+            );
+        }
+        OutFmt::Plink => {
+            let samples: Vec<SampleKey> = sample_ids
+                .iter()
+                .map(|sid| SampleKey { fid: sid.clone(), iid: sid.clone() })
+                .collect();
+            plink_w = Some(
+                PlinkBfileWriter::new(&out, &samples)
+                    .map_err(pyo3::exceptions::PyRuntimeError::new_err)?,
+            );
+        }
+    }
+
+    let mut row_i8: Vec<i8> = Vec::with_capacity(n_samples);
+    while let Some((row, site)) = it.next_snp() {
+        stats.n_sites_seen += 1;
+
+        let (gref, galt) = match normalize_biallelic_snp(&site.ref_allele, &site.alt_allele) {
+            Some(x) => x,
+            None => {
+                if site.ref_allele.contains(',') || site.alt_allele.contains(',') {
+                    stats.n_sites_dropped_multiallelic += 1;
+                } else {
+                    stats.n_sites_dropped_non_snp += 1;
+                }
+                continue;
+            }
+        };
+
+        if row.len() != n_samples {
+            return Err(pyo3::exceptions::PyRuntimeError::new_err(
+                "internal row length mismatch",
+            ));
+        }
+
+        row_i8.clear();
+        row_i8.extend(row.iter().map(|&g| dosage_to_i8(g)));
+
+        match fmt {
+            OutFmt::Vcf => {
+                vcf_w
+                    .as_mut()
+                    .unwrap()
+                    .write_site(&site, &gref, &galt, &row_i8)
+                    .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+            }
+            OutFmt::Plink => {
+                plink_w
+                    .as_mut()
+                    .unwrap()
+                    .write_site_and_row(&site, &gref, &galt, &row_i8)
+                    .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+            }
+        }
+        stats.n_sites_written += 1;
+    }
+
     match fmt {
         OutFmt::Vcf => {
             vcf_w
