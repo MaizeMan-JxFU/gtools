@@ -945,8 +945,15 @@ pub fn merge_genotypes(inputs: Vec<String>, out: String, out_fmt: Option<String>
 // Single-input conversion (PyO3)
 // ============================================================
 
-#[pyfunction(signature = (input, out, out_fmt=None))]
-pub fn convert_genotypes(input: String, out: String, out_fmt: Option<String>) -> PyResult<PyConvertStats> {
+#[pyfunction(signature = (input, out, out_fmt=None, progress_callback=None, progress_every=10000))]
+pub fn convert_genotypes(
+    py: Python<'_>,
+    input: String,
+    out: String,
+    out_fmt: Option<String>,
+    progress_callback: Option<PyObject>,
+    progress_every: usize,
+) -> PyResult<PyConvertStats> {
     let fmt = infer_out_fmt(&out, out_fmt.as_deref().unwrap_or("auto"))
         .map_err(pyo3::exceptions::PyValueError::new_err)?;
 
@@ -988,9 +995,28 @@ pub fn convert_genotypes(input: String, out: String, out_fmt: Option<String>) ->
         }
     }
 
+    let report_progress = progress_callback.is_some()
+        && progress_every > 0
+        && matches!(&it, InputIter::Bed(_));
+    let total_sites = if report_progress {
+        match &it {
+            InputIter::Bed(bed) => bed.sites.len() as u64,
+            _ => 0,
+        }
+    } else {
+        0
+    };
+    let mut last_report: u64 = 0;
+
     let mut row_i8: Vec<i8> = Vec::with_capacity(n_samples);
     while let Some((row, site)) = it.next_snp() {
         stats.n_sites_seen += 1;
+        if report_progress && stats.n_sites_seen - last_report >= progress_every as u64 {
+            if let Some(cb) = progress_callback.as_ref() {
+                cb.call1(py, (stats.n_sites_seen, total_sites))?;
+            }
+            last_report = stats.n_sites_seen;
+        }
 
         let (gref, galt) = match normalize_biallelic_snp(&site.ref_allele, &site.alt_allele) {
             Some(x) => x,
@@ -1030,6 +1056,12 @@ pub fn convert_genotypes(input: String, out: String, out_fmt: Option<String>) ->
             }
         }
         stats.n_sites_written += 1;
+    }
+
+    if report_progress {
+        if let Some(cb) = progress_callback.as_ref() {
+            cb.call1(py, (stats.n_sites_seen, total_sites))?;
+        }
     }
 
     match fmt {
